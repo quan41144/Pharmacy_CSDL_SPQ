@@ -1,0 +1,64 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: medicare-pharmacy-system
+
+  # ===================================================================
+  # CẤU HÌNH DATABASE: Mặc định kết nối PostgreSQL (pharmacy_db)
+  # Có thể ghi đè qua biến môi trường hoặc chuyển sang MySQL khi cần
+  # ===================================================================
+  datasource:
+    # --- PostgreSQL Configuration (Mặc định) ---
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pharmacy_pqs}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
+    # --- Nếu dùng MySQL, đổi các dòng trên thành: ---
+    # url: ${DB_URL:jdbc:mysql://localhost:3306/pharmacy_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh}
+    # username: ${DB_USERNAME:root}
+    # password: ${DB_PASSWORD:123456}
+    # driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # QUY TẮC BẮT BUỘC: Ép toàn bộ tên bảng và tên cột thành lowercase snake_case
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    open-in-view: false
+
+# ===================================================================
+# CẤU HÌNH BẢO MẬT & JWT (JSON Web Token)
+# ===================================================================
+jwt:
+  # Secret key tối thiểu 256-bit (Base64 hex)
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  # Access token: 24 giờ (86400000 ms)
+  access-token-expiration: 86400000
+  # Refresh token: 7 ngày (604800000 ms)
+  refresh-token-expiration: 604800000
+
+# ===================================================================
+# CẤU HÌNH NGHIỆP VỤ HỆ THỐNG
+# ===================================================================
+pharmacy:
+  invoice:
+    expiration-minutes: 10
+  admin:
+    default-username: quan41144
+    default-initial-balance: 100000000
+  sales:
+    default-username: banhang1
+
+logging:
+  level:
+    com.pharmacy.medicare: DEBUG
+    org.springframework.security: INFO

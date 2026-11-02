@@ -1,0 +1,5 @@
+com\pharmacy\medicare\AuthAndUserSecurityTest.class
+com\pharmacy\medicare\VietnameseNumberToWordsTest.class
+com\pharmacy\medicare\InvoiceAndShoppingWorkflowTest.class
+com\pharmacy\medicare\WarehouseAndAdminApprovalWorkflowTest.class
+com\pharmacy\medicare\PdfReceiptServiceTest.class
