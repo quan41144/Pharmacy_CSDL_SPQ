@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Hiệu Thuốc - Pharmacy Management</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="app-header" id="app-header" style="display: none;">
+        <div class="header-container">
+            <a href="#" class="brand" onclick="app.navigate('pos')">
+                <div class="brand-icon"><i class="fa-solid fa-prescription-bottle-medical"></i></div>
+                <span>PHARMACY</span>
+            </a>
+
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item active" id="nav-pos">
+                        <button onclick="app.navigate('pos')"><i class="fa-solid fa-cash-register"></i> Bán hàng (POS)</button>
+                    </li>
+                    <li class="nav-item" id="nav-import">
+                        <button onclick="app.navigate('import')"><i class="fa-solid fa-truck-ramp-box"></i> Nhập kho</button>
+                    </li>
+                    <li class="nav-item" id="nav-disposal">
+                        <button onclick="app.navigate('disposal')"><i class="fa-solid fa-trash-can"></i> Hủy hàng</button>
+                    </li>
+                    <li class="nav-item" id="nav-invoices">
+                        <button onclick="app.navigate('invoices')"><i class="fa-solid fa-receipt"></i> Hóa đơn</button>
+                    </li>
+                    <li class="nav-item admin-only" id="nav-reports" style="display: none;">
+                        <button onclick="app.navigate('reports')"><i class="fa-solid fa-chart-line"></i> Báo cáo & Thống kê</button>
+                    </li>
+                    <li class="nav-item admin-only" id="nav-admin-mgmt" style="display: none;">
+                        <button onclick="app.navigate('admin-mgmt')"><i class="fa-solid fa-gear"></i> Quản trị Danh mục</button>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-badge-group">
+                <span class="badge-pill badge-balance admin-only" id="header-admin-balance" onclick="app.refreshAdminBalance()" title="Bấm để cập nhật số dư" style="display: none;">
+                    <i class="fa-solid fa-wallet"></i> Quỹ: <span id="val-admin-balance">0 đ</span>
+                </span>
+                <span class="badge-pill badge-warehouse">
+                    <i class="fa-solid fa-warehouse"></i> <span id="header-warehouse-name">Kho Tổng</span>
+                </span>
+                <span class="badge-pill badge-role">
+                    <i class="fa-solid fa-user-shield"></i> <span id="header-user-role">ADMIN</span>
+                </span>
+                <span style="font-size: 0.88rem; font-weight: 600;" id="header-user-name">Dược sĩ</span>
+                <button class="btn-logout" onclick="app.logout()"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- 1. LOGIN VIEW -->
+        <section id="view-login" class="view-section active">
+            <div class="login-wrapper">
+                <div class="login-card">
+                    <div style="text-align: center; margin-bottom: 1rem;">
+                        <span style="font-size: 2.8rem; color: var(--primary);"><i class="fa-solid fa-mortar-pestle"></i></span>
+                    </div>
+                    <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
+                    <p class="subtitle">Phần mềm Quản lý Hiệu thuốc Monolithic</p>
+                    
+                    <div id="login-error" style="display: none; background: #fee2e2; color: #dc2626; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.85rem;"></div>
+
+                    <form id="form-login" onsubmit="app.handleLogin(event)">
+                        <div class="form-group">
+                            <label>Tên đăng nhập</label>
+                            <input type="text" id="login-username" class="form-control" required placeholder="Nhập tên đăng nhập...">
+                        </div>
+                        <div class="form-group">
+                            <label>Mật khẩu</label>
+                            <input type="password" id="login-password" class="form-control" required placeholder="Nhập mật khẩu...">
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-login-submit">
+                            <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+                        </button>
+                    </form>
+
+                    <div class="demo-logins">
+                        <p>Tài khoản dùng thử nhanh (Mật khẩu: <strong>123456</strong>):</p>
+                        <div class="demo-btn-group">
+                            <button type="button" class="demo-btn" onclick="app.quickFillLogin('admin', '123456')">👑 Admin</button>
+                            <button type="button" class="demo-btn" onclick="app.quickFillLogin('sales', '123456')">🛒 Bán hàng</button>
+                            <button type="button" class="demo-btn" onclick="app.quickFillLogin('warehouse', '123456')">📦 Thủ kho</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. POS / BÁN HÀNG VIEW -->
+        <section id="view-pos" class="view-section">
+            <div class="pos-layout">
+                <!-- Left: Catalog & Product Grid -->
+                <div class="pos-catalog-panel">
+                    <div class="catalog-search-bar">
+                        <div class="search-input-wrap">
+                            <input type="text" id="pos-search-input" class="form-control" placeholder="🔍 Tìm kiếm thuốc (Tên hoặc công dụng - Live search / nhấn Enter)..." oninput="app.onProductSearchInput(this.value)" onkeydown="app.onProductSearchKeydown(event)">
+                        </div>
+                        <select id="pos-warehouse-select" class="form-control" style="width: 220px;" onchange="app.onPosWarehouseChange(this.value)">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Category Pills -->
+                    <div class="category-filter-bar" id="category-filter-bar">
+                        <button class="cat-pill active" onclick="app.filterByCategory(null)">Tất cả</button>
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Product Grid (4 columns x 5 rows = 20 products) -->
+                    <div class="product-grid" id="product-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination-wrap">
+                        <button id="pos-prev-page" onclick="app.changePosPage(-1)"><i class="fa-solid fa-chevron-left"></i> Trang trước</button>
+                        <span id="pos-page-info">Trang 1 / 1</span>
+                        <button id="pos-next-page" onclick="app.changePosPage(1)">Trang sau <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Right: Cart & Checkout Panel -->
+                <div class="pos-cart-panel">
+                    <div class="cart-header">
+                        <h3><i class="fa-solid fa-cart-shopping"></i> Giỏ hàng / Hóa đơn</h3>
+                        <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.clearCart()"><i class="fa-solid fa-trash"></i> Xóa giỏ</button>
+                    </div>
+
+                    <!-- Customer Selector -->
+                    <div class="customer-select-box">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.35rem;">
+                            <input type="text" id="customer-search-input" class="form-control" placeholder="Tìm khách hàng (Tên, SĐT, Ngày sinh)..." oninput="app.onCustomerSearchInput(this.value)" autocomplete="off">
+                            <button class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-customer')">+ Khách mới</button>
+                        </div>
+                        <!-- Live Search Dropdown -->
+                        <div class="live-dropdown" id="customer-dropdown"></div>
+
+                        <!-- Selected Customer Display -->
+                        <div class="selected-customer-card" id="selected-customer-card">
+                            <div>
+                                <strong id="card-cust-name">Khách vãng lai (KHVL)</strong>
+                                <div style="font-size: 0.75rem; color: var(--gray-600);" id="card-cust-sub">Khách chưa lưu thông tin</div>
+                            </div>
+                            <button style="border: none; background: transparent; color: var(--danger); cursor: pointer;" onclick="app.resetCustomerSelection()"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Cart Items Table -->
+                    <div class="cart-table-wrap">
+                        <table class="cart-table">
+                            <thead>
+                                <tr>
+                                    <th>Tên thuốc</th>
+                                    <th>Lô</th>
+                                    <th style="text-align: center;">SL</th>
+                                    <th style="text-align: right;">Đơn giá</th>
+                                    <th style="text-align: right;">T.Tiền</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--gray-400); padding: 2rem;">Giỏ hàng trống</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <textarea id="invoice-note" class="form-control" rows="2" placeholder="Ghi chú hóa đơn (tùy chọn)..."></textarea>
+                    </div>
+
+                    <!-- Cart Totals -->
+                    <div class="cart-totals">
+                        <div class="cart-totals-row">
+                            <span>Tổng số lượng:</span>
+                            <strong id="cart-total-qty">0</strong>
+                        </div>
+                        <div class="cart-totals-row">
+                            <span>Tổng tiền thanh toán:</span>
+                            <span class="cart-totals-grand" id="cart-total-amount">0 đ</span>
+                        </div>
+                        <div class="cart-words" id="cart-amount-words">Viết bằng chữ: Không đồng chẵn.</div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="cart-actions">
+                        <button class="btn-primary" id="btn-create-invoice" onclick="app.handleCreateInvoice()">
+                            <i class="fa-solid fa-file-invoice"></i> 1. Tạo hóa đơn (Chờ thanh toán)
+                        </button>
+                        <button class="btn-success" id="btn-confirm-payment" onclick="app.handleConfirmPayment()" disabled>
+                            <i class="fa-solid fa-check-double"></i> 2. Xác nhận thanh toán (Trừ kho)
+                        </button>
+                        <button class="btn-secondary" id="btn-print-k80" onclick="app.openK80Modal()" disabled>
+                            <i class="fa-solid fa-print"></i> 3. In hóa đơn (K80)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. IMPORT SLIP VIEW -->
+        <section id="view-import" class="view-section">
+            <div class="slip-container">
+                <!-- Search Area -->
+                <div class="slip-search-card">
+                    <h3 style="margin-bottom: 1rem; color: var(--primary);"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm Nhà cung cấp & Thuốc</h3>
+                    <div class="form-grid-2">
+                        <div style="position: relative;">
+                            <label style="font-size: 0.85rem; font-weight: 600;">Nhà cung cấp (*)</label>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
+                                <input type="text" id="import-supplier-input" class="form-control" placeholder="Nhập mã hoặc tên nhà cung cấp..." oninput="app.onSupplierSearchInput(this.value)">
+                                <button class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-supplier')">+ Thêm NCC</button>
+                            </div>
+                            <div class="live-dropdown" id="import-supplier-dropdown"></div>
+                            <div id="import-selected-supplier" style="font-size: 0.85rem; margin-top: 0.35rem; color: var(--success-dark); font-weight: 600;"></div>
+                        </div>
+
+                        <div style="position: relative;">
+                            <label style="font-size: 0.85rem; font-weight: 600;">Thuốc cần nhập (*)</label>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
+                                <input type="text" id="import-product-input" class="form-control" placeholder="Nhập tên thuốc cần nhập hàng..." oninput="app.onImportProductSearchInput(this.value)">
+                                <button class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-product')">+ Thêm thuốc</button>
+                            </div>
+                            <div class="live-dropdown" id="import-product-dropdown"></div>
+                            <div id="import-selected-product" style="font-size: 0.85rem; margin-top: 0.35rem; color: var(--primary); font-weight: 600;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Import Slip Form -->
+                <div class="slip-main-card">
+                    <div class="slip-header-title">PHIẾU NHẬP HÀNG</div>
+                    <form id="form-import-slip" onsubmit="app.handleCreateImportSlip(event)">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Tên thuốc (Read-only)</label>
+                                <input type="text" id="import-product-name-disp" class="form-control" readonly placeholder="Chưa chọn thuốc..." style="background: var(--gray-100);">
+                            </div>
+                            <div class="form-group">
+                                <label>Giá nhập mặc định</label>
+                                <input type="text" id="import-unit-price-disp" class="form-control" readonly value="10.000 VNĐ" style="background: var(--gray-100); font-weight: bold; color: var(--primary);">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Kho nhập hàng</label>
+                                <select id="import-warehouse-select" class="form-control">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Số lô sản xuất (Batch Code) (*)</label>
+                                <input type="text" id="import-batch-code" class="form-control" required placeholder="VD: LOT-AUG-2024C">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Ngày sản xuất (NSX) (*)</label>
+                                <input type="date" id="import-mfg-date" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Hạn sử dụng (HSD) (*)</label>
+                                <input type="date" id="import-exp-date" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Số lượng nhập (*)</label>
+                            <input type="number" id="import-quantity" class="form-control" required min="1" value="100" oninput="app.calcImportTotal()">
+                        </div>
+
+                        <!-- Auto computed total -->
+                        <div class="highlight-calc-box" id="import-calc-box">
+                            Tổng tiền cần thanh toán: 1.000.000 VNĐ
+                        </div>
+
+                        <button type="submit" class="btn-primary" id="btn-submit-import" style="padding: 1rem; font-size: 1.05rem;">
+                            <i class="fa-solid fa-paper-plane"></i> Yêu cầu xác nhận
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. DISPOSAL SLIP VIEW -->
+        <section id="view-disposal" class="view-section">
+            <div class="slip-container">
+                <!-- Batch Search Area -->
+                <div class="slip-search-card">
+                    <h3 style="margin-bottom: 0.75rem; color: #b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Tìm kiếm lô hàng cần hủy</h3>
+                    <div style="position: relative;">
+                        <input type="text" id="disposal-batch-input" class="form-control" placeholder="Nhập mã lô hoặc tên thuốc để tìm lô hàng cần hủy..." oninput="app.onDisposalBatchSearchInput(this.value)">
+                        <div class="live-dropdown" id="disposal-batch-dropdown"></div>
+                    </div>
+                </div>
+
+                <!-- Main Disposal Slip Form -->
+                <div class="slip-main-card">
+                    <div class="slip-header-title" style="color: #b45309;">PHIẾU HỦY HÀNG</div>
+                    <form id="form-disposal-slip" onsubmit="app.handleCreateDisposalSlip(event)">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Mã lô (Read-only)</label>
+                                <input type="text" id="disposal-batch-code-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
+                            </div>
+                            <div class="form-group">
+                                <label>Tên thuốc</label>
+                                <input type="text" id="disposal-product-name-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Kho chứa lô hàng</label>
+                                <input type="text" id="disposal-warehouse-name-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
+                            </div>
+                            <div class="form-group">
+                                <label>Số lượng tồn hiện tại</label>
+                                <input type="text" id="disposal-stock-disp" class="form-control" readonly placeholder="0" style="background: var(--gray-100); font-weight: bold; color: var(--danger);">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Số lượng hủy (*)</label>
+                            <input type="number" id="disposal-quantity" class="form-control" required min="1" placeholder="Nhập số lượng hủy...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Lý do hủy (*) (Bắt buộc ghi rõ nguyên nhân: Hết hạn, ẩm mốc, vỡ bể...)</label>
+                            <textarea id="disposal-reason" class="form-control" rows="3" required placeholder="Nhập lý do hủy thuốc..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn-danger" style="width: 100%; padding: 1rem; font-size: 1.05rem;">
+                            <i class="fa-solid fa-fire"></i> Xác nhận hủy
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. INVOICES MANAGEMENT VIEW -->
+        <section id="view-invoices" class="view-section">
+            <div class="data-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3><i class="fa-solid fa-list-check"></i> Danh sách Hóa đơn Bán hàng</h3>
+                    <button class="btn-secondary" onclick="app.loadInvoicesList()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Mã HĐ</th>
+                            <th>Khách hàng</th>
+                            <th>Nhân viên</th>
+                            <th>Kho xuất</th>
+                            <th>Ngày tạo</th>
+                            <th style="text-align: right;">Tổng tiền</th>
+                            <th style="text-align: center;">Trạng thái</th>
+                            <th style="text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoices-table-body">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 6. ADMIN DASHBOARD & REPORTS VIEW -->
+        <section id="view-reports" class="view-section">
+            <!-- Filter Toolbar -->
+            <div class="admin-toolbar">
+                <div class="filter-group">
+                    <label style="font-weight: 700;">Lọc theo:</label>
+                    <select id="report-filter-type" class="form-control" style="width: 130px;" onchange="app.onReportFilterTypeChange(this.value)">
+                        <option value="MONTH">Tháng</option>
+                        <option value="DAY">Ngày</option>
+                        <option value="YEAR">Năm</option>
+                    </select>
+                    <input type="text" id="report-filter-value" class="form-control" style="width: 160px;" placeholder="MM/yyyy (VD: 11/2026)">
+                    <button class="btn-primary" onclick="app.loadReportDashboard()"><i class="fa-solid fa-filter"></i> Xem báo cáo</button>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-secondary" onclick="app.printA4Report()"><i class="fa-solid fa-print"></i> In báo cáo (A4)</button>
+                    <button class="btn-success" onclick="app.downloadExcelReport()"><i class="fa-solid fa-file-excel"></i> Xuất Excel (.xlsx)</button>
+                    <button class="btn-danger" onclick="app.downloadPdfReport()"><i class="fa-solid fa-file-pdf"></i> Xuất PDF</button>
+                </div>
+            </div>
+
+            <!-- 4 KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title"><i class="fa-solid fa-truck-moving"></i> Tổng tiền nhập hàng</div>
+                    <div class="kpi-value" id="kpi-import-amount">0 đ</div>
+                    <div class="kpi-sub" id="kpi-import-count">0 phiếu nhập đã duyệt</div>
+                </div>
+
+                <div class="kpi-card kpi-revenue">
+                    <div class="kpi-title"><i class="fa-solid fa-sack-dollar"></i> Tổng tiền bán ra (Doanh thu)</div>
+                    <div class="kpi-value" id="kpi-revenue-amount" style="color: #10b981;">0 đ</div>
+                    <div class="kpi-sub" id="kpi-invoices-count">0 hóa đơn đã thanh toán</div>
+                </div>
+
+                <div class="kpi-card kpi-profit">
+                    <div class="kpi-title"><i class="fa-solid fa-chart-pie"></i> Số tiền lãi (Lợi nhuận gộp)</div>
+                    <div class="kpi-value" id="kpi-profit-amount" style="color: #f59e0b;">0 đ</div>
+                    <div class="kpi-sub">Doanh thu trừ giá vốn</div>
+                </div>
+
+                <div class="kpi-card kpi-balance">
+                    <div class="kpi-title"><i class="fa-solid fa-vault"></i> Số dư Quỹ Chủ cửa hàng</div>
+                    <div class="kpi-value" id="kpi-admin-balance" style="color: #6366f1;">0 đ</div>
+                    <div class="kpi-sub">Số dư thực tế tài khoản Admin</div>
+                </div>
+            </div>
+
+            <!-- 3 Tables in Tabs -->
+            <div class="data-card">
+                <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                    <button class="cat-pill active" id="tab-btn-rep-inv" onclick="app.switchReportTab('invoices')">1. Hóa đơn doanh thu trong kỳ</button>
+                    <button class="cat-pill" id="tab-btn-rep-imp" onclick="app.switchReportTab('imports')">2. Phiếu nhập hàng (Phê duyệt)</button>
+                    <button class="cat-pill" id="tab-btn-rep-stock" onclick="app.switchReportTab('stock')">3. Bảng kê tồn kho theo lô</button>
+                </div>
+
+                <!-- Tab 1: Invoices -->
+                <div id="rep-tab-invoices">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã HĐ</th>
+                                <th>Khách hàng</th>
+                                <th>Nhân viên</th>
+                                <th>Ngày mua</th>
+                                <th style="text-align: right;">Tổng tiền</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                                <th style="text-align: center;">In K80</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-invoices-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Tab 2: Imports -->
+                <div id="rep-tab-imports" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã phiếu</th>
+                                <th>Nhà cung cấp</th>
+                                <th>Nhân viên kho</th>
+                                <th>Kho nhập</th>
+                                <th>Ngày nhập</th>
+                                <th style="text-align: right;">Tổng tiền</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                                <th style="text-align: center;">Thao tác phê duyệt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-imports-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Tab 3: Stock -->
+                <div id="rep-tab-stock" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th>Tên thuốc</th>
+                                <th>Nhóm thuốc</th>
+                                <th>Mã lô</th>
+                                <th>NSX</th>
+                                <th>HSD</th>
+                                <th style="text-align: right;">Số lượng tồn</th>
+                                <th style="text-align: right;">Giá bán</th>
+                                <th style="text-align: right;">Tổng giá trị</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-stock-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. ADMIN MASTER DATA MANAGEMENT VIEW -->
+        <section id="view-admin-mgmt" class="view-section">
+            <div class="data-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--gray-200); padding-bottom: 0.75rem;">
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="cat-pill active" id="mgmt-tab-categories" onclick="app.switchMgmtTab('categories')">Nhóm thuốc</button>
+                        <button class="cat-pill" id="mgmt-tab-products" onclick="app.switchMgmtTab('products')">Thuốc & Giá</button>
+                        <button class="cat-pill" id="mgmt-tab-warehouses" onclick="app.switchMgmtTab('warehouses')">Kho hàng</button>
+                        <button class="cat-pill" id="mgmt-tab-suppliers" onclick="app.switchMgmtTab('suppliers')">Nhà cung cấp</button>
+                        <button class="cat-pill" id="mgmt-tab-employees" onclick="app.switchMgmtTab('employees')">Tài khoản Nhân viên</button>
+                    </div>
+                    <button class="btn-primary" id="btn-mgmt-add" onclick="app.onMgmtAddClick()">+ Thêm mới</button>
+                </div>
+
+                <div id="mgmt-table-container">
+                    <!-- Populated dynamically based on active sub-tab -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: Product Detail -->
+    <div class="modal-overlay" id="modal-product-detail">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-detail-title">Chi tiết thuốc</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-product-detail')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <img id="modal-detail-img" src="" style="width: 140px; height: 140px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--gray-200);">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary);" id="modal-detail-cat">NHÓM THUỐC</div>
+                        <h2 style="font-size: 1.25rem; margin: 0.25rem 0;" id="modal-detail-name">Tên thuốc</h2>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #e11d48; margin-bottom: 0.5rem;" id="modal-detail-price">0 đ / Hộp</div>
+                        <div style="font-size: 0.88rem; color: var(--gray-600);" id="modal-detail-dosage"><strong>Hàm lượng:</strong> <span></span></div>
+                        <div style="font-size: 0.88rem; color: var(--gray-600);" id="modal-detail-form"><strong>Dạng bào chế:</strong> <span></span></div>
+                        <div style="font-size: 0.88rem; color: var(--success-dark); font-weight: 700; margin-top: 0.25rem;" id="modal-detail-stock">Tổng tồn kho: <span>0</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.25rem;">
+                    <strong style="font-size: 0.9rem;">Công dụng chỉ định:</strong>
+                    <p style="font-size: 0.85rem; color: var(--gray-600); line-height: 1.4; margin-top: 0.25rem;" id="modal-detail-uses"></p>
+                </div>
+
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-boxes-stacked"></i> Danh sách các lô hiện có (NSX - HSD)</h4>
+                <table class="data-table" style="font-size: 0.82rem;">
+                    <thead>
+                        <tr>
+                            <th>Mã lô</th>
+                            <th>Kho</th>
+                            <th>NSX</th>
+                            <th>HSD</th>
+                            <th style="text-align: right;">Số lượng tồn</th>
+                            <th style="text-align: center;">Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-detail-batches-body"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="app.closeModal('modal-product-detail')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: K80 Thermal Receipt Preview -->
+    <div class="modal-overlay" id="modal-k80">
+        <div class="modal-content k80-modal-content">
+            <div class="modal-header">
+                <h3>Xem trước Hóa đơn K80</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-k80')">&times;</button>
+            </div>
+            <div class="k80-receipt-preview-wrap">
+                <!-- Standard K80 Container -->
+                <div id="k80-receipt">
+                    <div class="k80-header">
+                        <div class="k80-title-brand">PHARMACY</div>
+                        <div class="k80-phone">ĐT: 02773766999</div>
+                        <div class="k80-title-doc">HÓA ĐƠN BÁN LẺ</div>
+                        <div class="k80-line"></div>
+                    </div>
+
+                    <div class="k80-meta">
+                        <p><strong>Ngày mua:</strong> <span id="k80-date">03/11/2026 14:30:00</span></p>
+                        <p><strong>NV bán hàng:</strong> <span id="k80-staff">Nguyễn Thị Bán Hàng</span></p>
+                        <p><strong>Người mua:</strong> <span id="k80-customer">KHVL</span></p>
+                        <p><strong>Số HĐ:</strong> <span id="k80-code">PT00001</span></p>
+                        <div class="k80-line"></div>
+                    </div>
+
+                    <table class="k80-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">TT</th>
+                                <th style="width: 38%; text-align: left;">Tên hàng</th>
+                                <th style="width: 14%;">ĐVT</th>
+                                <th style="width: 10%; text-align: right;">SL</th>
+                                <th style="width: 15%; text-align: right;">ĐG</th>
+                                <th style="width: 15%; text-align: right;">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="k80-items-body"></tbody>
+                    </table>
+
+                    <div class="k80-line"></div>
+
+                    <div class="k80-summary">
+                        <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                            <span>Tổng SL: <span id="k80-total-qty">0</span></span>
+                            <span>Tổng TT: <span id="k80-total-amount">0</span> đ</span>
+                        </div>
+                        <div class="k80-words">
+                            <em>Viết bằng chữ: <strong><span id="k80-words-val"></span></strong></em>
+                        </div>
+                    </div>
+
+                    <div class="k80-footer">
+                        <em>Cảm ơn quý khách hàng đã mua hàng<br>
+                        Rất mong nhận được sự góp ý về phương thức phục vụ, giá cả, chất lượng của chúng tôi</em>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: white;">
+                <button class="btn-primary" onclick="app.printK80Direct()"><i class="fa-solid fa-print"></i> In ngay</button>
+                <button class="btn-success" onclick="app.downloadK80Pdf()"><i class="fa-solid fa-file-pdf"></i> Tải PDF</button>
+                <button class="btn-secondary" onclick="app.closeModal('modal-k80')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Add Customer -->
+    <div class="modal-overlay" id="modal-new-customer">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Thêm khách hàng mới</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-new-customer')">&times;</button>
+            </div>
+            <form onsubmit="app.handleSaveCustomer(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Họ và tên (*)</label>
+                        <input type="text" id="cust-fullname" class="form-control" required placeholder="Nguyễn Văn A">
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Ngày sinh (*)</label>
+                            <input type="date" id="cust-dob" class="form-control" required value="1990-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label>Giới tính</label>
+                            <select id="cust-gender" class="form-control">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="cust-phone" class="form-control" placeholder="0912345678">
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ (*)</label>
+                        <input type="text" id="cust-address" class="form-control" required placeholder="Số nhà, đường, quận/huyện...">
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú (tiền sử bệnh / dị ứng...)</label>
+                        <textarea id="cust-note" class="form-control" rows="2" placeholder="Dị ứng thuốc..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary">Lưu khách hàng</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-new-customer')">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 4: Add Supplier -->
+    <div class="modal-overlay" id="modal-new-supplier">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Thêm mới Nhà cung cấp</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-new-supplier')">&times;</button>
+            </div>
+            <form onsubmit="app.handleSaveSupplier(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Tên nhà cung cấp (*)</label>
+                        <input type="text" id="sup-name" class="form-control" required placeholder="Công ty Dược phẩm...">
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Số điện thoại (*)</label>
+                            <input type="tel" id="sup-phone" class="form-control" required placeholder="0243...">
+                        </div>
+                        <div class="form-group">
+                            <label>Mã số thuế</label>
+                            <input type="text" id="sup-tax" class="form-control" placeholder="0100...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Người đại diện</label>
+                        <input type="text" id="sup-rep" class="form-control" placeholder="Họ tên người liên hệ...">
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ</label>
+                        <input type="text" id="sup-address" class="form-control" placeholder="Địa chỉ trụ sở...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary">Lưu nhà cung cấp</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-new-supplier')">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 5: Add/Edit Product -->
+    <div class="modal-overlay" id="modal-new-product">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-prod-title">Thêm thuốc mới</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-new-product')">&times;</button>
+            </div>
+            <form onsubmit="app.handleSaveProduct(event)">
+                <input type="hidden" id="prod-id">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Tên thuốc (*)</label>
+                        <input type="text" id="prod-name" class="form-control" required placeholder="Tên biệt dược...">
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Nhóm thuốc (*)</label>
+                            <select id="prod-cat-select" class="form-control" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Đơn vị tính (ĐVT) (*)</label>
+                            <input type="text" id="prod-unit" class="form-control" required placeholder="Hộp, Vỉ, Lọ, Tuýp...">
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Giá bán hiện tại (VNĐ) (*)</label>
+                            <input type="number" id="prod-price" class="form-control" required min="0" step="1000" placeholder="25000">
+                        </div>
+                        <div class="form-group">
+                            <label>Dạng bào chế</label>
+                            <input type="text" id="prod-form" class="form-control" placeholder="Viên nén, Viên sủi...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hàm lượng hoạt chất</label>
+                        <input type="text" id="prod-dosage" class="form-control" placeholder="Paracetamol 500mg...">
+                    </div>
+                    <div class="form-group">
+                        <label>Công dụng chỉ định</label>
+                        <textarea id="prod-uses" class="form-control" rows="2" placeholder="Mô tả công dụng..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Link ảnh đại diện (Image URL)</label>
+                        <input type="url" id="prod-img-url" class="form-control" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary">Lưu thuốc</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-new-product')">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 6: Add/Edit Employee -->
+    <div class="modal-overlay" id="modal-new-employee">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-emp-title">Tạo tài khoản nhân viên</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-new-employee')">&times;</button>
+            </div>
+            <form onsubmit="app.handleSaveEmployee(event)">
+                <input type="hidden" id="emp-id">
+                <div class="modal-body">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Tên đăng nhập (Username) (*)</label>
+                            <input type="text" id="emp-username" class="form-control" required placeholder="username...">
+                        </div>
+                        <div class="form-group">
+                            <label>Mật khẩu (để trống nếu không đổi)</label>
+                            <input type="password" id="emp-password" class="form-control" placeholder="••••••">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Họ và tên (*)</label>
+                        <input type="text" id="emp-fullname" class="form-control" required placeholder="Dược sĩ Nguyễn Văn B...">
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Chức vụ / Quyền hạn (*)</label>
+                            <select id="emp-position" class="form-control" required>
+                                <option value="ROLE_SALES">Nhân viên Bán hàng (ROLE_SALES)</option>
+                                <option value="ROLE_WAREHOUSE">Nhân viên Thủ kho (ROLE_WAREHOUSE)</option>
+                                <option value="ROLE_ADMIN">Quản trị viên / Chủ cửa hàng (ROLE_ADMIN)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kho làm việc mặc định</label>
+                            <select id="emp-warehouse-select" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Ngày sinh (*)</label>
+                            <input type="date" id="emp-dob" class="form-control" required value="1995-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label>Giới tính</label>
+                            <select id="emp-gender" class="form-control">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Số điện thoại</label>
+                            <input type="tel" id="emp-phone" class="form-control" placeholder="091...">
+                        </div>
+                        <div class="form-group">
+                            <label>Trạng thái công tác</label>
+                            <select id="emp-status" class="form-control">
+                                <option value="ACTIVE">Đang làm việc (ACTIVE)</option>
+                                <option value="INACTIVE">Đã nghỉ việc (INACTIVE)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="emp-balance-group">
+                        <label>Số dư Quỹ (Chỉ áp dụng cho Admin)</label>
+                        <input type="number" id="emp-balance" class="form-control" value="0" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary">Lưu nhân viên</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-new-employee')">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= CENTER 2-SECOND TOAST POPUP ================= -->
+    <div class="center-toast-overlay" id="center-toast-overlay">
+        <div class="center-toast-card" id="center-toast-card">
+            <!-- Dynamically populated e.g. "❌ Yêu cầu không thành công (Số dư chủ cửa hàng không đủ)" -->
+        </div>
+    </div>
+
+    <!-- ================= HIDDEN A4 PRINTABLE REPORT ================= -->
+    <div id="a4-printable-report">
+        <div class="a4-header">
+            <h2>HỆ THỐNG QUẢN LÝ HIỆU THUỐC PHARMACY</h2>
+            <p>102 Trường Chinh, Đống Đa, Hà Nội - ĐT: 02773766999</p>
+            <h3 id="a4-report-title">BÁO CÁO DOANH THU & TỒN KHO</h3>
+        </div>
+
+        <h4>I. TỔNG HỢP CHỈ SỐ DOANH THU & KHO TRONG KỲ</h4>
+        <table class="a4-table">
+            <tr>
+                <th>Tổng tiền nhập hàng</th>
+                <th>Tổng tiền bán ra (Doanh thu)</th>
+                <th>Số tiền lãi (Lợi nhuận gộp)</th>
+                <th>Số dư Quỹ Chủ cửa hàng</th>
+            </tr>
+            <tr>
+                <td style="text-align: center;" id="a4-val-import">0 đ</td>
+                <td style="text-align: center;" id="a4-val-revenue">0 đ</td>
+                <td style="text-align: center;" id="a4-val-profit">0 đ</td>
+                <td style="text-align: center;" id="a4-val-balance">0 đ</td>
+            </tr>
+        </table>
+
+        <h4 style="margin-top: 20px;">II. DANH SÁCH HÓA ĐƠN TRONG KỲ</h4>
+        <table class="a4-table">
+            <thead>
+                <tr>
+                    <th>Mã HĐ</th>
+                    <th>Khách hàng</th>
+                    <th>Nhân viên</th>
+                    <th>Ngày tạo</th>
+                    <th style="text-align: right;">Tổng tiền</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="a4-invoices-body"></tbody>
+        </table>
+
+        <div class="a4-signatures">
+            <div class="a4-sign-box">
+                <div class="role">Người lập báo cáo</div>
+                <div>(Ký và ghi rõ họ tên)</div>
+            </div>
+            <div class="a4-sign-box">
+                <div class="role" id="a4-sign-date">Hà Nội, Ngày 03 tháng 11 năm 2026<br>Chủ cửa hàng / Giám đốc</div>
+                <div>(Ký tên và đóng dấu)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App JavaScript -->
+    <script src="js/app.js"></script>
+</body>
+</html>
