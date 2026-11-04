@@ -43,6 +43,10 @@ public class DisposalSlipService {
             throw new RuntimeException("Nhân viên đã ngừng làm việc, không được lập phiếu hủy.");
         }
 
+        if (!"ROLE_WAREHOUSE".equalsIgnoreCase(staff.getPosition()) && !"ROLE_ADMIN".equalsIgnoreCase(staff.getPosition())) {
+            throw new RuntimeException("Nhân viên bán hàng không được hủy hàng. Chỉ nhân viên kho hoặc quản trị viên mới được lập phiếu hủy.");
+        }
+
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kho"));
 

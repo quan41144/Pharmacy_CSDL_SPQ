@@ -27,6 +27,7 @@ const app = {
         supSearchTimer: null,
         importProdSearchTimer: null,
         dispBatchSearchTimer: null,
+        invSearchTimer: null,
         // Selected items for slips
         selectedImportSupplier: null,
         selectedImportProduct: null,
@@ -56,10 +57,22 @@ const app = {
 
     async showAppView() {
         document.getElementById('app-header').style.display = 'block';
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         this.updateHeaderUserInfo();
-        await this.loadWarehouses();
-        await this.loadCategories();
-        this.navigate('pos');
+
+        try {
+            await this.loadWarehouses();
+            await this.loadCategories();
+        } catch (e) {
+            console.error('Preload warning', e);
+        }
+
+        const role = this.state.user ? this.state.user.position : '';
+        if (role === 'ROLE_WAREHOUSE') {
+            this.navigate('import');
+        } else {
+            this.navigate('pos');
+        }
         this.initDefaultDateInputs();
     },
 
@@ -71,10 +84,31 @@ const app = {
         document.getElementById('header-user-role').textContent = u.position ? u.position.replace('ROLE_', '') : 'STAFF';
         document.getElementById('header-warehouse-name').textContent = u.warehouseName || 'Kho Tổng';
 
-        const isAdmin = u.position === 'ROLE_ADMIN';
+        const role = u.position || '';
+        const isAdmin = role === 'ROLE_ADMIN';
+        const isWarehouse = role === 'ROLE_WAREHOUSE';
+        const isSales = role === 'ROLE_SALES';
+
+        // 1. Quản trị viên (Báo cáo & Thống kê, Quản trị Danh mục)
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = isAdmin ? 'inline-flex' : 'none';
         });
+
+        // 2. Nghiệp vụ: Nhân viên kho KHÔNG ĐƯỢC bán hàng -> Ẩn menu Bán hàng (POS)
+        const navPos = document.getElementById('nav-pos');
+        if (navPos) {
+            navPos.style.display = isWarehouse ? 'none' : 'inline-flex';
+        }
+
+        // 3. Nghiệp vụ: Nhân viên bán hàng KHÔNG ĐƯỢC nhập/hủy hàng -> Ẩn menu Nhập kho và Hủy hàng
+        const navImport = document.getElementById('nav-import');
+        if (navImport) {
+            navImport.style.display = isSales ? 'none' : 'inline-flex';
+        }
+        const navDisposal = document.getElementById('nav-disposal');
+        if (navDisposal) {
+            navDisposal.style.display = isSales ? 'none' : 'inline-flex';
+        }
 
         if (isAdmin) {
             this.refreshAdminBalance();
@@ -82,17 +116,7 @@ const app = {
     },
 
     async refreshAdminBalance() {
-        try {
-            const res = await this.apiFetch('/api/v1/employees/admin-balance');
-            if (res.success) {
-                const bal = res.data != null ? res.data : 0;
-                document.getElementById('val-admin-balance').textContent = this.formatCurrency(bal) + ' đ';
-                const kpiBal = document.getElementById('kpi-admin-balance');
-                if (kpiBal) kpiBal.textContent = this.formatCurrency(bal) + ' đ';
-            }
-        } catch (e) {
-            console.error('Refresh balance failed', e);
-        }
+        // Quỹ đã được loại bỏ theo yêu cầu nghiệp vụ
     },
 
     // ================= API FETCH INTERCEPTOR =================
@@ -154,7 +178,13 @@ const app = {
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
         const errEl = document.getElementById('login-error');
+        const submitBtn = document.getElementById('btn-login-submit');
         errEl.style.display = 'none';
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang đăng nhập...';
+        }
 
         try {
             const res = await fetch('/api/v1/auth/login', {
@@ -174,7 +204,7 @@ const app = {
                 localStorage.setItem('refreshToken', data.data.refreshToken);
                 localStorage.setItem('user', JSON.stringify(data.data));
 
-                this.showAppView();
+                await this.showAppView();
             } else {
                 errEl.textContent = data.message || 'Đăng nhập không thành công';
                 errEl.style.display = 'block';
@@ -182,12 +212,19 @@ const app = {
         } catch (err) {
             errEl.textContent = 'Lỗi kết nối máy chủ: ' + err.message;
             errEl.style.display = 'block';
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Đăng nhập';
+            }
         }
     },
 
     quickFillLogin(user, pass) {
         document.getElementById('login-username').value = user;
         document.getElementById('login-password').value = pass;
+        const form = document.getElementById('form-login');
+        if (form) form.requestSubmit();
     },
 
     logout() {
@@ -202,6 +239,17 @@ const app = {
 
     // ================= NAVIGATION =================
     navigate(viewName) {
+        const role = this.state.user ? this.state.user.position : '';
+        // Route Guards: Ràng buộc nghiệp vụ theo quyền tài khoản
+        if (role === 'ROLE_WAREHOUSE' && viewName === 'pos') {
+            this.showCenterToast('⚠️ Nhân viên kho không được phép bán hàng!', 'red', 2500);
+            return;
+        }
+        if (role === 'ROLE_SALES' && (viewName === 'import' || viewName === 'disposal')) {
+            this.showCenterToast('⚠️ Nhân viên bán hàng không được phép nhập/hủy hàng!', 'red', 2500);
+            return;
+        }
+
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
@@ -345,10 +393,14 @@ const app = {
                     const fallbackImg = 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300';
                     const img = p.imageUrl ? p.imageUrl : fallbackImg;
                     const stock = p.totalStock != null ? p.totalStock : 0;
-                    const stockClass = stock > 0 ? 'color: var(--success-dark);' : 'color: var(--danger);';
+                    const isOutOfStock = stock <= 0;
+                    const stockBadge = isOutOfStock
+                        ? '<span class="status-badge status-cancelled" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;"><i class="fa-solid fa-circle-xmark"></i> Hết hàng</span>'
+                        : `<span style="color: var(--success-dark); font-weight: 700;">Tồn: ${stock}</span>`;
 
                     html += `
-                        <div class="product-card">
+                        <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}">
+                            ${isOutOfStock ? '<span class="badge-stock-out"><i class="fa-solid fa-ban"></i> HẾT HÀNG</span>' : ''}
                             <img class="product-card-img" src="${img}" alt="${p.productName}" onerror="this.src='${fallbackImg}'" onclick="app.showProductDetail(${p.productId})">
                             <div class="product-card-body" onclick="app.showProductDetail(${p.productId})">
                                 <span class="product-card-cat">${p.categoryName || 'Thuốc'}</span>
@@ -358,15 +410,15 @@ const app = {
                                     <span class="product-card-price">${app.formatCurrency(p.sellingPrice)} đ</span>
                                     <span class="product-card-unit">/ ${p.unit}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 0.25rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-top: 0.35rem;">
                                     <span>Hàm lượng: ${p.dosage || '-'}</span>
-                                    <strong style="${stockClass}">Tồn: ${stock}</strong>
+                                    ${stockBadge}
                                 </div>
                             </div>
                             <div class="product-card-actions">
-                                <input type="number" id="qty-input-${p.productId}" value="1" min="1" max="${Math.max(1, stock)}">
-                                <button type="button" onclick="app.addToCartFEFO(${p.productId})" ${stock <= 0 ? 'disabled style="background: var(--gray-400); cursor: not-allowed;"' : ''}>
-                                    <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ
+                                <input type="number" id="qty-input-${p.productId}" value="1" min="1" max="${Math.max(1, stock)}" ${isOutOfStock ? 'disabled style="background: var(--gray-100); cursor: not-allowed;"' : ''}>
+                                <button type="button" onclick="app.addToCartFEFO(${p.productId})" ${isOutOfStock ? 'disabled style="background: var(--gray-400); cursor: not-allowed;"' : ''}>
+                                    <i class="fa-solid ${isOutOfStock ? 'fa-ban' : 'fa-cart-plus'}"></i> ${isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
                                 </button>
                             </div>
                         </div>
@@ -399,7 +451,9 @@ const app = {
                 document.getElementById('modal-detail-price').textContent = this.formatCurrency(p.sellingPrice) + ' đ / ' + p.unit;
                 document.getElementById('modal-detail-dosage').querySelector('span').textContent = p.dosage || 'Không';
                 document.getElementById('modal-detail-form').querySelector('span').textContent = p.dosageForm || 'Không';
-                document.getElementById('modal-detail-stock').querySelector('span').textContent = (p.totalStock || 0) + ' ' + p.unit;
+                const pStock = p.totalStock != null ? p.totalStock : 0;
+                const pOut = pStock <= 0;
+                document.getElementById('modal-detail-stock').innerHTML = `<strong>Tồn kho hiện tại:</strong> <span class="status-badge ${pOut ? 'status-cancelled' : 'status-paid'}" style="margin-left: 0.35rem; font-size: 0.82rem;">${pOut ? 'Hết hàng (0 ' + p.unit + ')' : 'Còn hàng (' + pStock + ' ' + p.unit + ')'}</span>`;
                 document.getElementById('modal-detail-uses').textContent = p.uses || 'Không có mô tả công dụng';
                 document.getElementById('modal-detail-img').src = p.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300';
 
@@ -710,7 +764,7 @@ const app = {
 
             if (res.success && res.data) {
                 this.state.activeInvoice = res.data;
-                alert(`✅ Xác nhận thanh toán thành công hóa đơn ${res.data.invoiceCode}! Tồn kho đã được trừ và tiền đã cộng vào tài khoản Quỹ.`);
+                alert(`✅ Xác nhận thanh toán thành công hóa đơn ${res.data.invoiceCode}! Tồn kho đã được trừ theo FEFO.`);
                 document.getElementById('btn-confirm-payment').disabled = true;
                 document.getElementById('btn-print-k80').disabled = false;
                 this.refreshAdminBalance();
@@ -775,6 +829,33 @@ const app = {
     },
 
     // ================= IMPORT SLIP VIEW =================
+    generateRandomBatchCode(productName) {
+        let prefix = 'MED';
+        const p = this.state.selectedImportProduct;
+        const name = productName || (p ? p.productName : '');
+
+        if (name) {
+            const clean = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                              .replace(/[^a-zA-Z]/g, "")
+                              .toUpperCase();
+            if (clean.length >= 3) {
+                prefix = clean.substring(0, 3);
+            } else if (clean.length > 0) {
+                prefix = clean.padEnd(3, 'X');
+            }
+        }
+
+        const year = new Date().getFullYear();
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const randomLetter = letters.charAt(Math.floor(Math.random() * letters.length));
+        const code = `LOT-${prefix}-${year}${randomLetter}`;
+        const input = document.getElementById('import-batch-code');
+        if (input) {
+            input.value = code;
+        }
+        return code;
+    },
+
     initImportView() {
         const today = new Date();
         const mfg = new Date(today);
@@ -785,85 +866,170 @@ const app = {
 
         document.getElementById('import-mfg-date').value = mfg.toISOString().split('T')[0];
         document.getElementById('import-exp-date').value = exp.toISOString().split('T')[0];
+        this.generateRandomBatchCode();
         this.calcImportTotal();
+    },
+
+    onSupplierSearchFocus() {
+        const input = document.getElementById('import-supplier-input');
+        this.onSupplierSearchInput(input ? input.value : '');
+    },
+
+    onSupplierSearchKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            clearTimeout(this.state.supSearchTimer);
+            const val = document.getElementById('import-supplier-input').value;
+            this.searchSuppliersNow(val);
+        }
     },
 
     onSupplierSearchInput(val) {
         clearTimeout(this.state.supSearchTimer);
+        this.state.supSearchTimer = setTimeout(() => {
+            this.searchSuppliersNow(val);
+        }, 200);
+    },
+
+    async searchSuppliersNow(q = '') {
         const dropdown = document.getElementById('import-supplier-dropdown');
-        const q = val.trim();
-
-        if (!q) {
-            dropdown.style.display = 'none';
-            return;
-        }
-
-        this.state.supSearchTimer = setTimeout(async () => {
-            try {
-                const res = await this.apiFetch('/api/v1/suppliers/live-search?keyword=' + encodeURIComponent(q));
-                if (res.success && res.data && res.data.length > 0) {
-                    dropdown.innerHTML = res.data.map(s => `
+        if (!dropdown) return;
+        try {
+            const res = await this.apiFetch('/api/v1/suppliers/live-search?keyword=' + encodeURIComponent(q.trim()));
+            if (res.success && res.data && res.data.length > 0) {
+                dropdown.innerHTML = `
+                    <div style="padding: 0.35rem 0.75rem; background: var(--gray-100); font-size: 0.75rem; font-weight: 700; color: var(--gray-600); border-bottom: 1px solid var(--gray-200);">
+                        KẾT QUẢ TÌM KIẾM NHÀ CUNG CẤP (${res.data.length})
+                    </div>
+                    ${res.data.map(s => `
                         <div class="live-dropdown-item" onclick="app.selectImportSupplier(${JSON.stringify(s).replace(/"/g, '&quot;')})">
-                            <strong>NCC${String(s.supplierId).padStart(4, '0')} - ${s.supplierName}</strong> (SĐT: ${s.phone})
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong><i class="fa-solid fa-truck-field"></i> NCC#${s.supplierId} - ${s.supplierName}</strong>
+                                <span style="font-size: 0.75rem; color: var(--primary); font-weight: 600;"><i class="fa-solid fa-phone"></i> ${s.phone || '-'}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.2rem;">
+                                ${s.taxCode ? 'MST: ' + s.taxCode + ' | ' : ''}${s.representativeName ? 'Đại diện: ' + s.representativeName + ' | ' : ''}Địa chỉ: ${s.address || '-'}
+                            </div>
                         </div>
-                    `).join('');
-                    dropdown.style.display = 'block';
-                } else {
-                    dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400);">Không tìm thấy nhà cung cấp.</div>';
-                    dropdown.style.display = 'block';
-                }
-            } catch (e) { console.error(e); }
-        }, 300);
+                    `).join('')}
+                `;
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400); text-align: center; padding: 1rem;"><i class="fa-solid fa-circle-question"></i> Không tìm thấy nhà cung cấp nào. Bấm "+ Thêm NCC" để thêm mới.</div>';
+                dropdown.style.display = 'block';
+            }
+        } catch (e) { console.error('Supplier search error', e); }
     },
 
     selectImportSupplier(s) {
         this.state.selectedImportSupplier = s;
-        document.getElementById('import-supplier-dropdown').style.display = 'none';
+        const dropdown = document.getElementById('import-supplier-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
         document.getElementById('import-supplier-input').value = s.supplierName;
-        document.getElementById('import-selected-supplier').textContent = `✓ Đã chọn: NCC${String(s.supplierId).padStart(4, '0')} - ${s.supplierName}`;
+        document.getElementById('import-selected-supplier').innerHTML = `
+            <div class="selected-customer-card" style="background: #f0fdf4; border-color: #86efac; margin-top: 0.35rem;">
+                <div>
+                    <strong style="color: #166534;"><i class="fa-solid fa-circle-check"></i> NCC#${s.supplierId}: ${s.supplierName}</strong>
+                    <div style="font-size: 0.78rem; color: #15803d;">SĐT: ${s.phone || '-'} | Đại diện: ${s.representativeName || '-'}</div>
+                </div>
+                <button type="button" class="btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" onclick="app.clearImportSupplier()">✕ Đổi</button>
+            </div>
+        `;
+    },
+
+    clearImportSupplier() {
+        this.state.selectedImportSupplier = null;
+        document.getElementById('import-supplier-input').value = '';
+        document.getElementById('import-selected-supplier').innerHTML = '';
+        document.getElementById('import-supplier-input').focus();
+    },
+
+    onImportProductSearchFocus() {
+        const input = document.getElementById('import-product-input');
+        this.onImportProductSearchInput(input ? input.value : '');
+    },
+
+    onImportProductSearchKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            clearTimeout(this.state.importProdSearchTimer);
+            const val = document.getElementById('import-product-input').value;
+            this.searchImportProductsNow(val);
+        }
     },
 
     onImportProductSearchInput(val) {
         clearTimeout(this.state.importProdSearchTimer);
+        this.state.importProdSearchTimer = setTimeout(() => {
+            this.searchImportProductsNow(val);
+        }, 200);
+    },
+
+    async searchImportProductsNow(q = '') {
         const dropdown = document.getElementById('import-product-dropdown');
-        const q = val.trim();
-
-        if (!q) {
-            dropdown.style.display = 'none';
-            return;
-        }
-
-        this.state.importProdSearchTimer = setTimeout(async () => {
-            try {
-                const res = await this.apiFetch('/api/v1/products/live-search?keyword=' + encodeURIComponent(q));
-                if (res.success && res.data && res.data.length > 0) {
-                    dropdown.innerHTML = res.data.map(p => `
+        if (!dropdown) return;
+        try {
+            const res = await this.apiFetch('/api/v1/products/live-search?keyword=' + encodeURIComponent(q.trim()));
+            if (res.success && res.data && res.data.length > 0) {
+                dropdown.innerHTML = `
+                    <div style="padding: 0.35rem 0.75rem; background: var(--gray-100); font-size: 0.75rem; font-weight: 700; color: var(--gray-600); border-bottom: 1px solid var(--gray-200);">
+                        KẾT QUẢ TÌM KIẾM THUỐC (${res.data.length}) - Tên, Hoạt chất, Công dụng
+                    </div>
+                    ${res.data.map(p => `
                         <div class="live-dropdown-item" onclick="app.selectImportProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300'}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;">
-                                <div>
-                                    <strong>${p.productName}</strong> (${p.unit})
-                                    <div style="font-size: 0.72rem; color: var(--gray-400);">Giá nhập mặc định: 10.000 đ</div>
+                            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                                <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300'}" style="width: 38px; height: 38px; object-fit: cover; border-radius: 4px; border: 1px solid var(--gray-200);">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <strong>#${p.productId} - ${p.productName}</strong>
+                                        <span class="status-badge status-paid" style="font-size: 0.7rem;">${p.categoryName || 'Thuốc'}</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--gray-500); line-height: 1.3;">
+                                        ĐVT: <strong>${p.unit}</strong> | Giá bán niêm yết: ${app.formatCurrency(p.sellingPrice)} đ
+                                    </div>
+                                    <div style="font-size: 0.72rem; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px;">
+                                        ${p.uses ? '<i class="fa-solid fa-stethoscope"></i> ' + p.uses : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    `).join('');
-                    dropdown.style.display = 'block';
-                } else {
-                    dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400);">Không tìm thấy thuốc. Bấm "+ Thêm thuốc" để tạo mới.</div>';
-                    dropdown.style.display = 'block';
-                }
-            } catch (e) { console.error(e); }
-        }, 300);
+                    `).join('')}
+                `;
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400); text-align: center; padding: 1rem;"><i class="fa-solid fa-circle-question"></i> Không tìm thấy thuốc phù hợp. Bấm "+ Thêm thuốc" để tạo mới.</div>';
+                dropdown.style.display = 'block';
+            }
+        } catch (e) { console.error('Product search error', e); }
     },
 
     selectImportProduct(p) {
         this.state.selectedImportProduct = p;
-        document.getElementById('import-product-dropdown').style.display = 'none';
+        const dropdown = document.getElementById('import-product-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
         document.getElementById('import-product-input').value = p.productName;
         document.getElementById('import-product-name-disp').value = p.productName + ' (' + p.unit + ')';
-        document.getElementById('import-selected-product').textContent = `✓ Đã ghim: ${p.productName}`;
-        this.calcImportTotal();
+        this.generateRandomBatchCode(p.productName);
+        document.getElementById('import-selected-product').innerHTML = `
+            <div class="selected-customer-card" style="background: #eff6ff; border-color: #93c5fd; margin-top: 0.35rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300'}" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px;">
+                    <div>
+                        <strong style="color: #1e40af;"><i class="fa-solid fa-circle-check"></i> ${p.productName}</strong> (${p.unit})
+                        <div style="font-size: 0.78rem; color: #2563eb;">Nhóm: ${p.categoryName || '-'} | Giá bán: ${app.formatCurrency(p.sellingPrice)} đ</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" onclick="app.clearImportProduct()">✕ Đổi</button>
+            </div>
+        `;
+    },
+
+    clearImportProduct() {
+        this.state.selectedImportProduct = null;
+        document.getElementById('import-product-input').value = '';
+        document.getElementById('import-product-name-disp').value = '';
+        document.getElementById('import-selected-product').innerHTML = '';
+        document.getElementById('import-product-input').focus();
     },
 
     calcImportTotal() {
@@ -933,56 +1099,166 @@ const app = {
             btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yêu cầu xác nhận';
         }
     },
-
     // ================= DISPOSAL SLIP VIEW =================
     initDisposalView() {
-        this.state.selectedDisposalBatch = null;
-        document.getElementById('disposal-batch-input').value = '';
-        document.getElementById('disposal-batch-code-disp').value = '';
-        document.getElementById('disposal-product-name-disp').value = '';
-        document.getElementById('disposal-warehouse-name-disp').value = '';
-        document.getElementById('disposal-stock-disp').value = '0';
-        document.getElementById('form-disposal-slip').reset();
+        this.clearDisposalBatch(false);
+        const form = document.getElementById('form-disposal-slip');
+        if (form) form.reset();
+    },
+
+    onDisposalBatchSearchFocus() {
+        const input = document.getElementById('disposal-batch-input');
+        this.onDisposalBatchSearchInput(input ? input.value : '');
+    },
+
+    onDisposalBatchSearchKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            clearTimeout(this.state.dispBatchSearchTimer);
+            const val = document.getElementById('disposal-batch-input').value;
+            this.searchDisposalBatchesNow(val);
+        }
     },
 
     onDisposalBatchSearchInput(val) {
         clearTimeout(this.state.dispBatchSearchTimer);
+        this.state.dispBatchSearchTimer = setTimeout(() => {
+            this.searchDisposalBatchesNow(val);
+        }, 200);
+    },
+
+    async searchDisposalBatchesNow(q = '') {
         const dropdown = document.getElementById('disposal-batch-dropdown');
-        const q = val.trim();
+        if (!dropdown) return;
 
-        if (!q) {
-            dropdown.style.display = 'none';
-            return;
-        }
-
-        this.state.dispBatchSearchTimer = setTimeout(async () => {
-            try {
-                const res = await this.apiFetch(`/api/v1/batches/search-disposal?keyword=${encodeURIComponent(q)}&warehouseId=${this.state.activeWarehouseId || ''}`);
-                if (res.success && res.data && res.data.length > 0) {
-                    dropdown.innerHTML = res.data.map(b => `
+        try {
+            const role = this.state.user ? this.state.user.position : '';
+        const whId = (role === 'ROLE_WAREHOUSE' && this.state.user && this.state.user.warehouseId) 
+            ? this.state.user.warehouseId 
+            : (this.state.activeWarehouseId || '');
+        const res = await this.apiFetch(`/api/v1/batches/search-disposal?keyword=${encodeURIComponent(q.trim())}&warehouseId=${whId}`);
+            if (res.success && res.data && res.data.length > 0) {
+                dropdown.innerHTML = `
+                    <div style="padding: 0.4rem 0.75rem; background: var(--gray-100); font-size: 0.75rem; font-weight: 700; color: var(--gray-600); border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fa-solid fa-list-check"></i> KẾT QUẢ TÌM KIẾM LÔ THUỐC (${res.data.length})</span>
+                        <span style="color: #b45309; font-size: 0.72rem; font-weight: 600;"><i class="fa-solid fa-arrow-down-short-wide"></i> Ưu tiên cận/hết hạn</span>
+                    </div>
+                    ${res.data.map(b => {
+                        let badgeColor = '#16a34a';
+                        let badgeBg = '#dcfce7';
+                        let badgeIcon = 'fa-check-circle';
+                        if (b.status === 'Hết hạn') {
+                            badgeColor = '#dc2626';
+                            badgeBg = '#fee2e2';
+                            badgeIcon = 'fa-skull-crossbones';
+                        } else if (b.status === 'Gần hết hạn') {
+                            badgeColor = '#d97706';
+                            badgeBg = '#fef3c7';
+                            badgeIcon = 'fa-triangle-exclamation';
+                        }
+                        const prodTitle = b.productName ? `${b.productName} (#${b.productId})` : `Thuốc #${b.productId}`;
+                        const unitStr = b.unit ? ` ${b.unit}` : '';
+                        return `
                         <div class="live-dropdown-item" onclick="app.selectDisposalBatch(${JSON.stringify(b).replace(/"/g, '&quot;')})">
-                            <strong>Mã lô: ${b.batchId} (${b.batchCode})</strong> | Tồn: <strong>${b.quantity}</strong> | Trạng thái: <strong>${b.status}</strong>
-                            <div style="font-size: 0.75rem; color: var(--gray-600);">Kho: ${b.warehouseName} | NSX: ${b.mfgDate} - HSD: ${b.expDate}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="font-size: 0.88rem; color: #1e293b;">
+                                    <i class="fa-solid fa-box-archive" style="color: #b45309; margin-right: 4px;"></i> Lô: ${b.batchCode} - ${prodTitle}
+                                </strong>
+                                <span style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap;">
+                                    <i class="fa-solid ${badgeIcon}"></i> ${b.status}
+                                </span>
+                            </div>
+                            <div style="font-size: 0.76rem; color: var(--gray-600); margin-top: 0.3rem; display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-warehouse"></i> ${b.warehouseName || 'Kho'} | NSX: ${b.mfgDate} | <strong style="color: ${badgeColor};">HSD: ${b.expDate}</strong></span>
+                                <span style="font-weight: 700; color: var(--danger); font-size: 0.8rem;">Tồn: ${b.quantity}${unitStr}</span>
+                            </div>
                         </div>
-                    `).join('');
-                    dropdown.style.display = 'block';
-                } else {
-                    dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400);">Không tìm thấy lô hàng có tồn kho phù hợp.</div>';
-                    dropdown.style.display = 'block';
-                }
-            } catch (e) { console.error(e); }
-        }, 300);
+                        `;
+                    }).join('')}
+                `;
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.innerHTML = '<div class="live-dropdown-item" style="color: var(--gray-400); text-align: center; padding: 1rem;"><i class="fa-solid fa-circle-question"></i> Không tìm thấy lô hàng có tồn kho phù hợp.</div>';
+                dropdown.style.display = 'block';
+            }
+        } catch (e) { console.error('Disposal batch search error', e); }
     },
 
     selectDisposalBatch(b) {
         this.state.selectedDisposalBatch = b;
-        document.getElementById('disposal-batch-dropdown').style.display = 'none';
-        document.getElementById('disposal-batch-input').value = `${b.batchCode} (Mã ${b.batchId})`;
-        document.getElementById('disposal-batch-code-disp').value = b.batchCode;
-        document.getElementById('disposal-product-name-disp').value = `Thuốc ID: ${b.productId}`;
-        document.getElementById('disposal-warehouse-name-disp').value = b.warehouseName;
-        document.getElementById('disposal-stock-disp').value = b.quantity;
-        document.getElementById('disposal-quantity').max = b.quantity;
+        const dropdown = document.getElementById('disposal-batch-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+
+        const prodTitle = b.productName ? `${b.productName} (#${b.productId})` : `Thuốc #${b.productId}`;
+        const unitStr = b.unit ? ` ${b.unit}` : '';
+
+        const input = document.getElementById('disposal-batch-input');
+        if (input) input.value = `${b.batchCode} - ${prodTitle}`;
+
+        const bCode = document.getElementById('disposal-batch-code-disp');
+        if (bCode) bCode.value = b.batchCode;
+
+        const pName = document.getElementById('disposal-product-name-disp');
+        if (pName) pName.value = b.productName ? `${b.productName} (${b.unit || 'Đơn vị'})` : `Thuốc #${b.productId}`;
+
+        const wName = document.getElementById('disposal-warehouse-name-disp');
+        if (wName) wName.value = b.warehouseName || '';
+
+        const stock = document.getElementById('disposal-stock-disp');
+        if (stock) stock.value = `${b.quantity}${unitStr}`;
+
+        const qtyInput = document.getElementById('disposal-quantity');
+        if (qtyInput) {
+            qtyInput.max = b.quantity;
+            qtyInput.value = b.quantity;
+        }
+
+        const card = document.getElementById('disposal-selected-batch-card');
+        if (card) {
+            let badgeColor = '#16a34a';
+            let badgeBg = '#dcfce7';
+            if (b.status === 'Hết hạn') {
+                badgeColor = '#dc2626';
+                badgeBg = '#fee2e2';
+            } else if (b.status === 'Gần hết hạn') {
+                badgeColor = '#d97706';
+                badgeBg = '#fef3c7';
+            }
+            card.innerHTML = `
+                <div class="selected-customer-card" style="background: #fff7ed; border: 1px solid #fdba74; margin-top: 0.4rem; padding: 0.6rem 0.8rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #9a3412;"><i class="fa-solid fa-circle-check"></i> Đã chọn lô: ${b.batchCode} - ${prodTitle}</strong>
+                        <div style="font-size: 0.78rem; color: #c2410c; margin-top: 2px;">
+                            Kho: <strong>${b.warehouseName}</strong> | Tồn: <strong style="color: var(--danger);">${b.quantity}${unitStr}</strong> | HSD: <strong>${b.expDate}</strong>
+                            <span style="padding: 1px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; font-weight: 600; margin-left: 6px;">${b.status}</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="app.clearDisposalBatch()">✕ Đổi</button>
+                </div>
+            `;
+        }
+    },
+
+    clearDisposalBatch(focus = true) {
+        this.state.selectedDisposalBatch = null;
+        const input = document.getElementById('disposal-batch-input');
+        if (input) {
+            input.value = '';
+            if (focus) input.focus();
+        }
+        const bCode = document.getElementById('disposal-batch-code-disp');
+        if (bCode) bCode.value = '';
+        const pName = document.getElementById('disposal-product-name-disp');
+        if (pName) pName.value = '';
+        const wName = document.getElementById('disposal-warehouse-name-disp');
+        if (wName) wName.value = '';
+        const stock = document.getElementById('disposal-stock-disp');
+        if (stock) stock.value = '0';
+        const qtyInput = document.getElementById('disposal-quantity');
+        if (qtyInput) qtyInput.value = '';
+        const card = document.getElementById('disposal-selected-batch-card');
+        if (card) card.innerHTML = '';
+        if (focus) this.onDisposalBatchSearchFocus();
     },
 
     async handleCreateDisposalSlip(e) {
@@ -1015,9 +1291,12 @@ const app = {
             });
 
             if (res.success) {
-                this.showCenterToast('✅ Thành công', 'green', 2000);
+                this.showCenterToast('✅ Đã tạo phiếu hủy hàng thành công', 'green', 2000);
+                this.clearDisposalBatch(false);
                 this.initDisposalView();
-                this.loadPosProducts(); // Update stock
+                if (this.state.user && this.state.user.position !== 'ROLE_WAREHOUSE') {
+                    this.loadPosProducts();
+                }
             } else {
                 alert('Lỗi xác nhận hủy hàng: ' + res.message);
             }
@@ -1027,15 +1306,30 @@ const app = {
     },
 
     // ================= INVOICES MANAGEMENT VIEW =================
-    async loadInvoicesList() {
+    onInvoiceSearchInput(val) {
+        clearTimeout(this.state.invSearchTimer);
+        this.state.invSearchTimer = setTimeout(() => {
+            this.loadInvoicesList(val);
+        }, 200);
+    },
+
+    clearInvoiceSearch() {
+        const inp = document.getElementById('invoice-search-input');
+        if (inp) inp.value = '';
+        this.loadInvoicesList('');
+    },
+
+    async loadInvoicesList(keyword = '') {
         const tbody = document.getElementById('invoices-table-body');
         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Đang tải danh sách hóa đơn...</td></tr>';
 
         try {
-            const res = await this.apiFetch('/api/v1/invoices');
+            const kw = (keyword !== undefined && keyword !== null) ? keyword : (document.getElementById('invoice-search-input')?.value || '');
+            const url = kw.trim() ? `/api/v1/invoices?keyword=${encodeURIComponent(kw.trim())}` : '/api/v1/invoices';
+            const res = await this.apiFetch(url);
             if (res.success && res.data) {
                 if (res.data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--gray-400); padding: 2rem;">Chưa có hóa đơn nào.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--gray-400); padding: 2rem;"><i class="fa-solid fa-receipt"></i> Không tìm thấy hóa đơn nào${kw ? ' phù hợp với từ khóa "' + kw + '"' : ''}.</td></tr>`;
                     return;
                 }
 
@@ -1053,11 +1347,11 @@ const app = {
                     return `
                         <tr>
                             <td><strong>${inv.invoiceCode}</strong></td>
-                            <td>${inv.customerName}</td>
-                            <td>${inv.salesStaffName}</td>
-                            <td>${inv.warehouseName}</td>
+                            <td><strong>${inv.customerName || 'Khách vãng lai'}</strong></td>
+                            <td>${inv.salesStaffName || '-'}</td>
+                            <td>${inv.warehouseName || '-'}</td>
                             <td>${app.formatDateTime(inv.createdAt)}</td>
-                            <td style="text-align: right; font-weight: bold;">${app.formatCurrency(inv.totalAmount)} đ</td>
+                            <td style="text-align: right; font-weight: bold; color: var(--primary);">${app.formatCurrency(inv.totalAmount)} đ</td>
                             <td style="text-align: center;">${badge}</td>
                             <td style="text-align: center;">${actions}</td>
                         </tr>
@@ -1133,13 +1427,11 @@ const app = {
                 document.getElementById('kpi-invoices-count').textContent = k.totalInvoicesCount + ' hóa đơn đã thanh toán';
 
                 document.getElementById('kpi-profit-amount').textContent = this.formatCurrency(k.grossProfit) + ' đ';
-                document.getElementById('kpi-admin-balance').textContent = this.formatCurrency(k.adminBalance) + ' đ';
 
                 // A4 report sync
                 document.getElementById('a4-val-import').textContent = this.formatCurrency(k.totalImportAmount) + ' đ';
                 document.getElementById('a4-val-revenue').textContent = this.formatCurrency(k.totalRevenue) + ' đ';
                 document.getElementById('a4-val-profit').textContent = this.formatCurrency(k.grossProfit) + ' đ';
-                document.getElementById('a4-val-balance').textContent = this.formatCurrency(k.adminBalance) + ' đ';
                 document.getElementById('a4-report-title').textContent = 'BÁO CÁO DOANH THU & TỒN KHO - ' + k.filterPeriod.toUpperCase();
             }
 
@@ -1249,7 +1541,7 @@ const app = {
     },
 
     async approveImportSlip(id) {
-        if (!confirm('Bạn có chắc muốn phê duyệt phiếu nhập này? (Tiền sẽ được trừ vào tài khoản Admin và tồn kho sẽ được cộng).')) return;
+        if (!confirm('Bạn có chắc muốn phê duyệt phiếu nhập này? (Hàng hóa sẽ được nhập và cộng vào tồn kho).')) return;
         try {
             const res = await this.apiFetch(`/api/v1/import-slips/${id}/confirm`, { method: 'POST' });
             if (res.success) {
@@ -1285,17 +1577,7 @@ const app = {
         }, 1000);
     },
 
-    downloadPdfReport() {
-        const type = this.state.reportFilterType;
-        const val = this.state.reportFilterValue;
-        window.open(`/api/v1/reports/pdf?filterType=${type}&filterValue=${encodeURIComponent(val)}`, '_blank');
-    },
 
-    downloadExcelReport() {
-        const type = this.state.reportFilterType;
-        const val = this.state.reportFilterValue;
-        window.open(`/api/v1/reports/excel?filterType=${type}&filterValue=${encodeURIComponent(val)}`, '_blank');
-    },
 
     // ================= ADMIN MASTER DATA MANAGEMENT =================
     switchMgmtTab(tabName) {
@@ -1330,28 +1612,56 @@ const app = {
                             </tbody>
                         </table>
                     `;
+                } else {
+                    container.innerHTML = `<div style="color: var(--danger); padding: 1.5rem; text-align: center;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Không thể tải danh sách nhân viên: ${res?.message || 'Bạn không có quyền truy cập hoặc phiên làm việc đã hết hạn.'}
+                    </div>`;
                 }
             } else if (tabName === 'products') {
                 const res = await this.apiFetch('/api/v1/products?size=100');
                 if (res.success && res.data) {
                     container.innerHTML = `
                         <table class="data-table">
-                            <thead><tr><th>ID</th><th>Tên thuốc</th><th>Nhóm</th><th>ĐVT</th><th>Giá bán hiện tại</th><th>Tồn</th><th>Thao tác</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tên thuốc</th>
+                                    <th>Nhóm</th>
+                                    <th>ĐVT</th>
+                                    <th>Giá bán hiện tại</th>
+                                    <th>Tồn kho</th>
+                                    <th style="text-align: center;">Trạng thái</th>
+                                    <th style="text-align: center;">Thao tác</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                ${res.data.content.map(p => `
+                                ${res.data.content.map(p => {
+                                    const st = p.totalStock != null ? p.totalStock : 0;
+                                    const out = st <= 0;
+                                    return `
                                     <tr>
-                                        <td>${p.productId}</td>
+                                        <td><strong>#${p.productId}</strong></td>
                                         <td><strong>${p.productName}</strong></td>
-                                        <td>${p.categoryName}</td>
+                                        <td>${p.categoryName || '-'}</td>
                                         <td>${p.unit}</td>
                                         <td style="font-weight: bold; color: #e11d48;">${app.formatCurrency(p.sellingPrice)} đ</td>
-                                        <td>${p.totalStock}</td>
-                                        <td>
-                                            <button class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="app.editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
-                                            <button class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="app.deleteProduct(${p.productId})">Xóa</button>
+                                        <td style="font-weight: bold; color: ${out ? 'var(--danger)' : 'var(--success-dark)'};">${st}</td>
+                                        <td style="text-align: center;">
+                                            <span class="status-badge ${out ? 'status-cancelled' : 'status-paid'}">
+                                                ${out ? 'Hết hàng' : 'Còn hàng'}
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.78rem; margin-right: 0.25rem;" onclick="app.editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                                                <i class="fa-solid fa-pen-to-square"></i> Sửa
+                                            </button>
+                                            <button class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.78rem;" onclick="app.deleteProduct(${p.productId})">
+                                                <i class="fa-solid fa-trash"></i> Xóa
+                                            </button>
                                         </td>
                                     </tr>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     `;
@@ -1403,20 +1713,58 @@ const app = {
                 }
             } else if (tabName === 'employees') {
                 const res = await this.apiFetch('/api/v1/employees');
-                if (res.success) {
+                if (res && res.success && Array.isArray(res.data)) {
+                    this.state.employeesCache = res.data;
                     container.innerHTML = `
+                        <div style="margin-bottom: 0.75rem; font-size: 0.88rem; color: var(--gray-600);">
+                            <i class="fa-solid fa-users-gear"></i> Tổng cộng <strong>${res.data.length}</strong> nhân sự trong hệ thống.
+                        </div>
                         <table class="data-table">
-                            <thead><tr><th>ID</th><th>Username</th><th>Họ tên</th><th>Chức vụ</th><th>Kho</th><th>Trạng thái</th><th>Số dư Quỹ</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>Mã NV</th>
+                                    <th>Tài khoản</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh & Tuổi</th>
+                                    <th>Giới tính</th>
+                                    <th>SĐT & Địa chỉ</th>
+                                    <th>Chức vụ</th>
+                                    <th>Kho phụ trách</th>
+                                    <th>Trạng thái</th>
+                                    <th style="text-align: center;">Thao tác</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 ${res.data.map(e => `
                                     <tr>
-                                        <td>${e.employeeId}</td>
-                                        <td><strong>${e.username}</strong></td>
-                                        <td>${e.fullName}</td>
-                                        <td>${e.position}</td>
+                                        <td><strong>#${e.employeeId}</strong></td>
+                                        <td><code>${e.username}</code></td>
+                                        <td><strong>${e.fullName}</strong></td>
+                                        <td>${this.formatDate(e.dateOfBirth)} <span style="color: var(--primary); font-size: 0.82rem; font-weight: 600;">(${e.age != null ? e.age : '-'} tuổi)</span></td>
+                                        <td>${e.gender || '-'}</td>
+                                        <td>
+                                            <div><i class="fa-solid fa-phone" style="font-size: 0.75rem;"></i> ${e.phone || '-'}</div>
+                                            <div style="font-size: 0.78rem; color: var(--gray-500);">${e.address || ''}</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge-pill ${e.position === 'ROLE_ADMIN' ? 'badge-role' : (e.position === 'ROLE_SALES' ? 'badge-warehouse' : 'badge-balance')}">
+                                                ${e.position === 'ROLE_ADMIN' ? '👑 Quản trị viên' : (e.position === 'ROLE_SALES' ? '🛒 Bán hàng' : '📦 Thủ kho')}
+                                            </span>
+                                        </td>
                                         <td>${e.warehouseName || '-'}</td>
-                                        <td><span class="status-badge ${e.workStatus === 'ACTIVE' ? 'status-active' : 'status-inactive'}">${e.workStatus}</span></td>
-                                        <td style="font-weight: bold;">${e.balance != null ? app.formatCurrency(e.balance) + ' đ' : '-'}</td>
+                                        <td>
+                                            <span class="status-badge ${e.workStatus === 'ACTIVE' ? 'status-active' : 'status-inactive'}">
+                                                ${e.workStatus === 'ACTIVE' ? 'Đang làm việc' : 'Đã nghỉ việc'}
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;" onclick="app.editEmployee(${e.employeeId})" title="Chỉnh sửa thông tin">
+                                                <i class="fa-solid fa-pen-to-square"></i> Sửa
+                                            </button>
+                                            <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: ${e.workStatus === 'ACTIVE' ? 'var(--danger)' : 'var(--success-dark)'};" onclick="app.toggleEmployeeStatus(${e.employeeId})" title="${e.workStatus === 'ACTIVE' ? 'Khóa nhân viên' : 'Kích hoạt lại'}">
+                                                <i class="fa-solid ${e.workStatus === 'ACTIVE' ? 'fa-user-lock' : 'fa-user-check'}"></i> ${e.workStatus === 'ACTIVE' ? 'Nghỉ việc' : 'Đi làm lại'}
+                                            </button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1463,6 +1811,23 @@ const app = {
         } else if (tab === 'suppliers') {
             this.openModal('modal-new-supplier');
         } else if (tab === 'employees') {
+            document.getElementById('emp-id').value = '';
+            document.getElementById('modal-emp-title').textContent = 'Tạo tài khoản nhân viên mới';
+            const uField = document.getElementById('emp-username');
+            uField.value = '';
+            uField.readOnly = false;
+            uField.style.background = 'white';
+            document.getElementById('emp-password').value = '';
+            document.getElementById('emp-password').placeholder = 'Mật khẩu khởi tạo (mặc định: 123456)...';
+            document.getElementById('emp-fullname').value = '';
+            document.getElementById('emp-dob').value = '1995-01-01';
+            document.getElementById('emp-gender').value = 'Nam';
+            document.getElementById('emp-phone').value = '';
+            const addrField = document.getElementById('emp-address');
+            if (addrField) addrField.value = '';
+            document.getElementById('emp-position').value = 'ROLE_SALES';
+            document.getElementById('emp-status').value = 'ACTIVE';
+            const empBalInput = document.getElementById('emp-balance'); if (empBalInput) empBalInput.value = '0';
             this.openModal('modal-new-employee');
         }
     },
@@ -1557,20 +1922,62 @@ const app = {
         }
     },
 
+    editEmployee(empId) {
+        const emp = (this.state.employeesCache || []).find(x => x.employeeId === empId);
+        if (!emp) return;
+
+        document.getElementById('emp-id').value = emp.employeeId;
+        document.getElementById('modal-emp-title').textContent = 'Cập nhật nhân viên: ' + emp.fullName;
+        
+        const uField = document.getElementById('emp-username');
+        uField.value = emp.username;
+        uField.readOnly = true;
+        uField.style.background = 'var(--gray-100)';
+
+        document.getElementById('emp-password').value = '';
+        document.getElementById('emp-password').placeholder = 'Bỏ trống nếu giữ nguyên mật khẩu cũ';
+
+        document.getElementById('emp-fullname').value = emp.fullName || '';
+        document.getElementById('emp-position').value = emp.position || 'ROLE_SALES';
+        if (emp.warehouseId && document.getElementById('emp-warehouse-select')) {
+            document.getElementById('emp-warehouse-select').value = emp.warehouseId;
+        }
+        document.getElementById('emp-dob').value = emp.dateOfBirth || '1995-01-01';
+        document.getElementById('emp-gender').value = emp.gender || 'Nam';
+        document.getElementById('emp-phone').value = emp.phone || '';
+        const addrField = document.getElementById('emp-address');
+        if (addrField) addrField.value = emp.address || '';
+        document.getElementById('emp-status').value = emp.workStatus || 'ACTIVE';
+        const empBalEdit = document.getElementById('emp-balance'); if (empBalEdit) empBalEdit.value = emp.balance != null ? emp.balance : 0;
+
+        this.openModal('modal-new-employee');
+    },
+
     async handleSaveEmployee(e) {
         e.preventDefault();
+        const idVal = document.getElementById('emp-id').value;
+        const pwdVal = document.getElementById('emp-password').value.trim();
+        const addrField = document.getElementById('emp-address');
+
         const payload = {
+            employeeId: idVal ? parseInt(idVal) : null,
             username: document.getElementById('emp-username').value.trim(),
-            password: document.getElementById('emp-password').value.trim() || '123456',
             fullName: document.getElementById('emp-fullname').value.trim(),
             position: document.getElementById('emp-position').value,
             warehouseId: parseInt(document.getElementById('emp-warehouse-select').value) || 1,
             dateOfBirth: document.getElementById('emp-dob').value,
             gender: document.getElementById('emp-gender').value,
             phone: document.getElementById('emp-phone').value.trim(),
+            address: addrField ? addrField.value.trim() : '',
             workStatus: document.getElementById('emp-status').value,
-            balance: parseFloat(document.getElementById('emp-balance').value) || 0
+            balance: document.getElementById('emp-balance') ? (parseFloat(document.getElementById('emp-balance').value) || 0) : 0
         };
+
+        if (pwdVal) {
+            payload.password = pwdVal;
+        } else if (!idVal) {
+            payload.password = '123456';
+        }
 
         try {
             const res = await this.apiFetch('/api/v1/employees', {
@@ -1580,11 +1987,122 @@ const app = {
 
             if (res.success) {
                 this.closeModal('modal-new-employee');
+                this.showCenterToast('✅ ' + (idVal ? 'Cập nhật' : 'Tạo mới') + ' nhân viên thành công!', 'green');
                 this.renderMgmtTable('employees');
             } else {
                 alert('Lỗi: ' + res.message);
             }
         } catch (err) { alert('Lỗi: ' + err.message); }
+    },
+
+    async toggleEmployeeStatus(empId) {
+        if (!confirm('Bạn có chắc muốn đổi trạng thái làm việc của nhân sự này?')) return;
+        try {
+            const res = await this.apiFetch(`/api/v1/employees/${empId}/toggle-status`, { method: 'PATCH' });
+            if (res.success) {
+                this.showCenterToast('✅ ' + res.message, 'green');
+                this.renderMgmtTable('employees');
+            } else {
+                alert('Lỗi: ' + res.message);
+            }
+        } catch (err) { alert('Lỗi: ' + err.message); }
+    },
+
+    // ================= USER PROFILE (TẤT CẢ TÀI KHOẢN) =================
+    async openProfileModal() {
+        try {
+            const res = await this.apiFetch('/api/v1/employees/profile');
+            if (res.success && res.data) {
+                const p = res.data;
+                document.getElementById('prof-emp-id').textContent = '#' + p.employeeId;
+                document.getElementById('prof-username').textContent = p.username;
+                document.getElementById('prof-position').textContent = p.position;
+                document.getElementById('prof-warehouse').textContent = p.warehouseName || 'Chưa gán';
+                document.getElementById('prof-start-date').textContent = p.startDate ? this.formatDate(p.startDate) : '-';
+                document.getElementById('prof-age').textContent = p.age != null ? p.age + ' tuổi' : '-';
+
+                document.getElementById('prof-fullname').value = p.fullName || '';
+                document.getElementById('prof-dob').value = p.dateOfBirth || '';
+                document.getElementById('prof-gender').value = p.gender || 'Nam';
+                document.getElementById('prof-phone').value = p.phone || '';
+                document.getElementById('prof-address').value = p.address || '';
+
+                document.getElementById('prof-current-pwd').value = '';
+                document.getElementById('prof-new-pwd').value = '';
+                document.getElementById('prof-confirm-pwd').value = '';
+
+                this.openModal('modal-user-profile');
+            } else {
+                alert('Không thể tải thông tin cá nhân: ' + (res.message || 'Lỗi'));
+            }
+        } catch (err) {
+            alert('Lỗi: ' + err.message);
+        }
+    },
+
+    calcProfileAgePreview(dobStr) {
+        if (!dobStr) return;
+        const dob = new Date(dobStr);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        document.getElementById('prof-age').textContent = (age >= 0 ? age : 0) + ' tuổi (dẫn xuất)';
+    },
+
+    async handleUpdateProfile(e) {
+        e.preventDefault();
+        const fullName = document.getElementById('prof-fullname').value.trim();
+        const dob = document.getElementById('prof-dob').value;
+        const gender = document.getElementById('prof-gender').value;
+        const phone = document.getElementById('prof-phone').value.trim();
+        const address = document.getElementById('prof-address').value.trim();
+
+        const curPwd = document.getElementById('prof-current-pwd').value.trim();
+        const newPwd = document.getElementById('prof-new-pwd').value.trim();
+        const confirmPwd = document.getElementById('prof-confirm-pwd').value.trim();
+
+        const payload = {
+            fullName,
+            dateOfBirth: dob,
+            gender,
+            phone,
+            address
+        };
+
+        if (newPwd) {
+            if (newPwd !== confirmPwd) {
+                alert('Mật khẩu mới và xác nhận mật khẩu không trùng khớp!');
+                return;
+            }
+            if (newPwd.length < 6) {
+                alert('Mật khẩu mới phải có tối thiểu 6 ký tự!');
+                return;
+            }
+            payload.currentPassword = curPwd;
+            payload.newPassword = newPwd;
+        }
+
+        try {
+            const res = await this.apiFetch('/api/v1/employees/profile', {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.success) {
+                this.closeModal('modal-user-profile');
+                this.showCenterToast('✅ Cập nhật thông tin cá nhân thành công!', 'green');
+                const headerName = document.getElementById('header-user-name');
+                if (headerName) headerName.textContent = res.data.fullName;
+                if (this.state.user) this.state.user.fullName = res.data.fullName;
+            } else {
+                alert('Lỗi cập nhật: ' + res.message);
+            }
+        } catch (err) {
+            alert('Lỗi: ' + err.message);
+        }
     },
 
     // ================= MODAL & TOAST HELPERS =================
@@ -1624,11 +2142,27 @@ const app = {
         return new Intl.NumberFormat('vi-VN').format(amount);
     },
 
-    formatDate(dateObj) {
-        const d = String(dateObj.getDate()).padStart(2, '0');
-        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const y = dateObj.getFullYear();
-        return `${d}/${m}/${y}`;
+    formatDate(dateInput) {
+        if (!dateInput) return '-';
+        if (typeof dateInput === 'string') {
+            const cleanStr = dateInput.split('T')[0];
+            if (cleanStr.includes('-')) {
+                const parts = cleanStr.split('-');
+                if (parts.length === 3) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+        }
+        try {
+            const date = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+            if (isNaN(date.getTime())) return String(dateInput);
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear();
+            return `${d}/${m}/${y}`;
+        } catch (_) {
+            return String(dateInput);
+        }
     },
 
     formatDateTime(dateStr) {
@@ -1710,7 +2244,30 @@ const app = {
     }
 };
 
+window.app = app;
+
 // Start application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
+});
+
+// Global click listener to close import and customer dropdowns
+document.addEventListener('click', (e) => {
+    const supDropdown = document.getElementById('import-supplier-dropdown');
+    const supInput = document.getElementById('import-supplier-input');
+    if (supDropdown && !supDropdown.contains(e.target) && e.target !== supInput) {
+        supDropdown.style.display = 'none';
+    }
+
+    const prodDropdown = document.getElementById('import-product-dropdown');
+    const prodInput = document.getElementById('import-product-input');
+    if (prodDropdown && !prodDropdown.contains(e.target) && e.target !== prodInput) {
+        prodDropdown.style.display = 'none';
+    }
+
+    const dispDropdown = document.getElementById('disposal-batch-dropdown');
+    const dispInput = document.getElementById('disposal-batch-input');
+    if (dispDropdown && !dispDropdown.contains(e.target) && e.target !== dispInput) {
+        dispDropdown.style.display = 'none';
+    }
 });

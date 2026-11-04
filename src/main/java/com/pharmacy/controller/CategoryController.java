@@ -5,6 +5,7 @@ import com.pharmacy.entity.Category;
 import com.pharmacy.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class CategoryController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Category>> saveCategory(@RequestBody Category category) {
         try {
             Category saved = categoryService.saveCategory(category);
@@ -32,6 +34,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable Long id) {
         try {
             categoryService.deleteCategory(id);

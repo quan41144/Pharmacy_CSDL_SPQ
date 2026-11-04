@@ -6,6 +6,7 @@ import com.pharmacy.service.SupplierService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class SupplierController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('WAREHOUSE', 'ADMIN')")
     public ResponseEntity<ApiResponse<SupplierDTO>> saveSupplier(@Valid @RequestBody SupplierDTO dto) {
         try {
             SupplierDTO saved = supplierService.saveSupplier(dto);
@@ -39,6 +41,7 @@ public class SupplierController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteSupplier(@PathVariable Long id) {
         try {
             supplierService.deleteSupplier(id);

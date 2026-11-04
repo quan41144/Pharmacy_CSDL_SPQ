@@ -11,10 +11,12 @@ import java.util.List;
 @Repository
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     @Query("SELECT s FROM Supplier s WHERE " +
-           "(:keyword IS NULL OR :keyword = '' OR " +
+           ":keyword IS NULL OR :keyword = '' OR " +
            "LOWER(s.supplierName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "s.phone LIKE CONCAT('%', :keyword, '%') OR " +
-           "s.taxCode LIKE CONCAT('%', :keyword, '%')) " +
+           "s.taxCode LIKE CONCAT('%', :keyword, '%') OR " +
+           "LOWER(s.representativeName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(s.address) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "ORDER BY s.supplierId ASC")
     List<Supplier> liveSearchSuppliers(@Param("keyword") String keyword);
 }

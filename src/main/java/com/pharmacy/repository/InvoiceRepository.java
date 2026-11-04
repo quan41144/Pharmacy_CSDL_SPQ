@@ -16,6 +16,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByStatusOrderByInvoiceIdDesc(String status);
 
+    @Query("SELECT i FROM Invoice i LEFT JOIN i.customer c " +
+           "WHERE (:keyword IS NULL OR :keyword = '' " +
+           "   OR LOWER(c.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "   OR c.phone LIKE CONCAT('%', :keyword, '%') " +
+           "   OR (:idFromCode IS NOT NULL AND i.invoiceId = :idFromCode)) " +
+           "ORDER BY i.invoiceId DESC")
+    List<Invoice> searchInvoicesByCustomerOrCode(@Param("keyword") String keyword, @Param("idFromCode") Long idFromCode);
+
     @Query("SELECT i FROM Invoice i WHERE i.createdAt >= :start AND i.createdAt <= :end ORDER BY i.invoiceId DESC")
     List<Invoice> findByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 

@@ -41,16 +41,15 @@
             </nav>
 
             <div class="user-badge-group">
-                <span class="badge-pill badge-balance admin-only" id="header-admin-balance" onclick="app.refreshAdminBalance()" title="Bấm để cập nhật số dư" style="display: none;">
-                    <i class="fa-solid fa-wallet"></i> Quỹ: <span id="val-admin-balance">0 đ</span>
-                </span>
                 <span class="badge-pill badge-warehouse">
                     <i class="fa-solid fa-warehouse"></i> <span id="header-warehouse-name">Kho Tổng</span>
                 </span>
                 <span class="badge-pill badge-role">
                     <i class="fa-solid fa-user-shield"></i> <span id="header-user-role">ADMIN</span>
                 </span>
-                <span style="font-size: 0.88rem; font-weight: 600;" id="header-user-name">Dược sĩ</span>
+                <span class="badge-pill badge-profile" onclick="app.openProfileModal()" title="Bấm để xem và sửa thông tin cá nhân">
+                    <i class="fa-solid fa-user-pen"></i> <span id="header-user-name">Dược sĩ</span>
+                </span>
                 <button class="btn-logout" onclick="app.logout()"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</button>
             </div>
         </div>
@@ -210,31 +209,43 @@
             </div>
         </section>
 
-        <!-- 3. IMPORT SLIP VIEW -->
+                <!-- 3. IMPORT SLIP VIEW -->
         <section id="view-import" class="view-section">
             <div class="slip-container">
                 <!-- Search Area -->
                 <div class="slip-search-card">
                     <h3 style="margin-bottom: 1rem; color: var(--primary);"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm Nhà cung cấp & Thuốc</h3>
                     <div class="form-grid-2">
+                        <!-- 1. Tìm kiếm Nhà cung cấp -->
                         <div style="position: relative;">
-                            <label style="font-size: 0.85rem; font-weight: 600;">Nhà cung cấp (*)</label>
+                            <label style="font-size: 0.85rem; font-weight: 600;">1. Nhà cung cấp (*)</label>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
-                                <input type="text" id="import-supplier-input" class="form-control" placeholder="Nhập mã hoặc tên nhà cung cấp..." oninput="app.onSupplierSearchInput(this.value)">
-                                <button class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-supplier')">+ Thêm NCC</button>
+                                <input type="text" id="import-supplier-input" class="form-control" 
+                                       placeholder="🔍 Tìm NCC: Tên, SĐT, Mã số thuế, Đại diện (gõ hoặc Enter)..." 
+                                       onfocus="app.onSupplierSearchFocus()" 
+                                       oninput="app.onSupplierSearchInput(this.value)"
+                                       onkeydown="app.onSupplierSearchKeydown(event)"
+                                       autocomplete="off">
+                                <button type="button" class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-supplier')">+ Thêm NCC</button>
                             </div>
                             <div class="live-dropdown" id="import-supplier-dropdown"></div>
-                            <div id="import-selected-supplier" style="font-size: 0.85rem; margin-top: 0.35rem; color: var(--success-dark); font-weight: 600;"></div>
+                            <div id="import-selected-supplier" style="margin-top: 0.35rem;"></div>
                         </div>
 
+                        <!-- 2. Tìm kiếm Thuốc cần nhập -->
                         <div style="position: relative;">
-                            <label style="font-size: 0.85rem; font-weight: 600;">Thuốc cần nhập (*)</label>
+                            <label style="font-size: 0.85rem; font-weight: 600;">2. Thuốc cần nhập (*)</label>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
-                                <input type="text" id="import-product-input" class="form-control" placeholder="Nhập tên thuốc cần nhập hàng..." oninput="app.onImportProductSearchInput(this.value)">
-                                <button class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-product')">+ Thêm thuốc</button>
+                                <input type="text" id="import-product-input" class="form-control" 
+                                       placeholder="🔍 Tìm thuốc: Tên, Công dụng, Nhóm thuốc (gõ hoặc Enter)..." 
+                                       onfocus="app.onImportProductSearchFocus()" 
+                                       oninput="app.onImportProductSearchInput(this.value)"
+                                       onkeydown="app.onImportProductSearchKeydown(event)"
+                                       autocomplete="off">
+                                <button type="button" class="btn-secondary" style="white-space: nowrap;" onclick="app.openModal('modal-new-product')">+ Thêm thuốc</button>
                             </div>
                             <div class="live-dropdown" id="import-product-dropdown"></div>
-                            <div id="import-selected-product" style="font-size: 0.85rem; margin-top: 0.35rem; color: var(--primary); font-weight: 600;"></div>
+                            <div id="import-selected-product" style="margin-top: 0.35rem;"></div>
                         </div>
                     </div>
                 </div>
@@ -283,12 +294,11 @@
                             <input type="number" id="import-quantity" class="form-control" required min="1" value="100" oninput="app.calcImportTotal()">
                         </div>
 
-                        <!-- Auto computed total -->
-                        <div class="highlight-calc-box" id="import-calc-box">
+                        <div id="import-calc-box" class="import-calc-box" style="margin-bottom: 1.25rem; font-weight: bold; color: var(--primary-dark);">
                             Tổng tiền cần thanh toán: 1.000.000 VNĐ
                         </div>
 
-                        <button type="submit" class="btn-primary" id="btn-submit-import" style="padding: 1rem; font-size: 1.05rem;">
+                        <button type="submit" class="btn-primary" id="btn-submit-import" style="width: 100%; padding: 1rem; font-size: 1.05rem;">
                             <i class="fa-solid fa-paper-plane"></i> Yêu cầu xác nhận
                         </button>
                     </form>
@@ -303,8 +313,17 @@
                 <div class="slip-search-card">
                     <h3 style="margin-bottom: 0.75rem; color: #b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Tìm kiếm lô hàng cần hủy</h3>
                     <div style="position: relative;">
-                        <input type="text" id="disposal-batch-input" class="form-control" placeholder="Nhập mã lô hoặc tên thuốc để tìm lô hàng cần hủy..." oninput="app.onDisposalBatchSearchInput(this.value)">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #92400e;">1. Chọn hoặc tìm kiếm Lô hàng / Thuốc (*)</label>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
+                            <input type="text" id="disposal-batch-input" class="form-control" 
+                                   placeholder="🔍 Tìm lô/thuốc: Mã lô, Tên thuốc (click để xem gợi ý, gõ hoặc Enter)..." 
+                                   onfocus="app.onDisposalBatchSearchFocus()"
+                                   oninput="app.onDisposalBatchSearchInput(this.value)"
+                                   onkeydown="app.onDisposalBatchSearchKeydown(event)"
+                                   autocomplete="off">
+                        </div>
                         <div class="live-dropdown" id="disposal-batch-dropdown"></div>
+                        <div id="disposal-selected-batch-card" style="margin-top: 0.35rem;"></div>
                     </div>
                 </div>
 
@@ -355,9 +374,14 @@
         <!-- 5. INVOICES MANAGEMENT VIEW -->
         <section id="view-invoices" class="view-section">
             <div class="data-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3><i class="fa-solid fa-list-check"></i> Danh sách Hóa đơn Bán hàng</h3>
-                    <button class="btn-secondary" onclick="app.loadInvoicesList()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                    <h3 style="margin: 0;"><i class="fa-solid fa-list-check"></i> Danh sách Hóa đơn Bán hàng</h3>
+                    <div style="display: flex; gap: 0.5rem; flex: 1; max-width: 460px;">
+                        <input type="text" id="invoice-search-input" class="form-control" 
+                               placeholder="🔍 Tìm hóa đơn theo Tên khách, SĐT hoặc Mã HĐ..." 
+                               oninput="app.onInvoiceSearchInput(this.value)">
+                        <button class="btn-secondary" style="white-space: nowrap;" onclick="app.clearInvoiceSearch()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+                    </div>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -396,8 +420,6 @@
 
                 <div style="display: flex; gap: 0.5rem;">
                     <button class="btn-secondary" onclick="app.printA4Report()"><i class="fa-solid fa-print"></i> In báo cáo (A4)</button>
-                    <button class="btn-success" onclick="app.downloadExcelReport()"><i class="fa-solid fa-file-excel"></i> Xuất Excel (.xlsx)</button>
-                    <button class="btn-danger" onclick="app.downloadPdfReport()"><i class="fa-solid fa-file-pdf"></i> Xuất PDF</button>
                 </div>
             </div>
 
@@ -421,11 +443,6 @@
                     <div class="kpi-sub">Doanh thu trừ giá vốn</div>
                 </div>
 
-                <div class="kpi-card kpi-balance">
-                    <div class="kpi-title"><i class="fa-solid fa-vault"></i> Số dư Quỹ Chủ cửa hàng</div>
-                    <div class="kpi-value" id="kpi-admin-balance" style="color: #6366f1;">0 đ</div>
-                    <div class="kpi-sub">Số dư thực tế tài khoản Admin</div>
-                </div>
             </div>
 
             <!-- 3 Tables in Tabs -->
@@ -838,14 +855,92 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group" id="emp-balance-group">
-                        <label>Số dư Quỹ (Chỉ áp dụng cho Admin)</label>
-                        <input type="number" id="emp-balance" class="form-control" value="0" min="0">
+                    <div class="form-group">
+                        <label>Địa chỉ thường trú</label>
+                        <input type="text" id="emp-address" class="form-control" placeholder="Số nhà, đường, quận/huyện...">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn-primary">Lưu nhân viên</button>
                     <button type="button" class="btn-secondary" onclick="app.closeModal('modal-new-employee')">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Modal 7: User Profile & Password Change -->
+    <div class="modal-overlay" id="modal-user-profile">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-id-card"></i> Thông tin cá nhân & Đổi mật khẩu</h3>
+                <button class="modal-close" onclick="app.closeModal('modal-user-profile')">&times;</button>
+            </div>
+            <form onsubmit="app.handleUpdateProfile(event)">
+                <div class="modal-body">
+                    <!-- Read-only metadata summary -->
+                    <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
+                        <div><strong>Mã nhân viên:</strong> <span id="prof-emp-id">-</span></div>
+                        <div><strong>Tài khoản:</strong> <span id="prof-username">-</span></div>
+                        <div><strong>Chức vụ:</strong> <span id="prof-position" class="badge-pill badge-role">-</span></div>
+                        <div><strong>Kho phụ trách:</strong> <span id="prof-warehouse">-</span></div>
+                        <div><strong>Ngày vào làm:</strong> <span id="prof-start-date">-</span></div>
+                        <div><strong>Tuổi tròn:</strong> <span id="prof-age" style="color: var(--primary); font-weight: bold;">-</span></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Họ và tên (*)</label>
+                        <input type="text" id="prof-fullname" class="form-control" required placeholder="Họ và tên...">
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Ngày sinh (*)</label>
+                            <input type="date" id="prof-dob" class="form-control" required onchange="app.calcProfileAgePreview(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Giới tính</label>
+                            <select id="prof-gender" class="form-control">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Số điện thoại</label>
+                            <input type="tel" id="prof-phone" class="form-control" placeholder="0912...">
+                        </div>
+                        <div class="form-group">
+                            <label>Địa chỉ</label>
+                            <input type="text" id="prof-address" class="form-control" placeholder="Địa chỉ thường trú...">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; border-top: 1px dashed var(--gray-300); padding-top: 0.75rem;">
+                        <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--gray-700);">
+                            <i class="fa-solid fa-key"></i> Đổi mật khẩu (Bỏ trống nếu không muốn đổi)
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.82rem;">Mật khẩu hiện tại</label>
+                            <input type="password" id="prof-current-pwd" class="form-control" placeholder="Nhập mật khẩu hiện tại...">
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.82rem;">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                                <input type="password" id="prof-new-pwd" class="form-control" placeholder="Mật khẩu mới...">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.82rem;">Xác nhận mật khẩu mới</label>
+                                <input type="password" id="prof-confirm-pwd" class="form-control" placeholder="Nhập lại mật khẩu mới...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-user-profile')">Hủy</button>
                 </div>
             </form>
         </div>
@@ -872,13 +967,11 @@
                 <th>Tổng tiền nhập hàng</th>
                 <th>Tổng tiền bán ra (Doanh thu)</th>
                 <th>Số tiền lãi (Lợi nhuận gộp)</th>
-                <th>Số dư Quỹ Chủ cửa hàng</th>
             </tr>
             <tr>
                 <td style="text-align: center;" id="a4-val-import">0 đ</td>
                 <td style="text-align: center;" id="a4-val-revenue">0 đ</td>
                 <td style="text-align: center;" id="a4-val-profit">0 đ</td>
-                <td style="text-align: center;" id="a4-val-balance">0 đ</td>
             </tr>
         </table>
 

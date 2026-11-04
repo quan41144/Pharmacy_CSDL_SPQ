@@ -60,10 +60,15 @@ public class CustomerService {
     }
 
     private CustomerDTO toDTO(Customer c) {
+        Integer age = null;
+        if (c.getDateOfBirth() != null) {
+            age = java.time.Period.between(c.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+        }
         return CustomerDTO.builder()
                 .customerId(c.getCustomerId())
                 .fullName(c.getFullName())
                 .dateOfBirth(c.getDateOfBirth())
+                .age(age)
                 .gender(c.getGender())
                 .phone(c.getPhone())
                 .address(c.getAddress())

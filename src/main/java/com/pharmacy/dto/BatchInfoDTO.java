@@ -11,6 +11,8 @@ import java.time.LocalDate;
 public class BatchInfoDTO {
     private Long batchId;
     private Long productId;
+    private String productName;
+    private String unit;
     private String batchCode;
     private LocalDate mfgDate;
     private LocalDate expDate;

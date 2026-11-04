@@ -235,11 +235,17 @@ CREATE OR REPLACE FUNCTION fn_check_invoice_init()
 RETURNS TRIGGER AS $$
 DECLARE
     v_staff_status VARCHAR(30);
+    v_staff_pos VARCHAR(100);
     v_warehouse_status VARCHAR(30);
 BEGIN
-    SELECT work_status INTO v_staff_status FROM employees WHERE employee_id = NEW.sales_staff_id;
+    SELECT work_status, position INTO v_staff_status, v_staff_pos FROM employees WHERE employee_id = NEW.sales_staff_id;
     IF v_staff_status IS DISTINCT FROM 'ACTIVE' THEN
         RAISE EXCEPTION 'Nhan vien da ngung lam viec, khong duoc lap hoa don.';
+    END IF;
+
+    -- Ràng buộc: Nhân viên kho không được bán hàng
+    IF v_staff_pos NOT IN ('ROLE_SALES', 'ROLE_ADMIN') THEN
+        RAISE EXCEPTION 'Nhan vien kho khong duoc ban hang (chi nhan vien ban hang hoac quan tri vien moi duoc lap hoa don).';
     END IF;
 
     SELECT status INTO v_warehouse_status FROM warehouses WHERE warehouse_id = NEW.warehouse_id;
@@ -259,11 +265,17 @@ CREATE OR REPLACE FUNCTION fn_check_slip_init()
 RETURNS TRIGGER AS $$
 DECLARE
     v_staff_status VARCHAR(30);
+    v_staff_pos VARCHAR(100);
     v_warehouse_status VARCHAR(30);
 BEGIN
-    SELECT work_status INTO v_staff_status FROM employees WHERE employee_id = NEW.warehouse_staff_id;
+    SELECT work_status, position INTO v_staff_status, v_staff_pos FROM employees WHERE employee_id = NEW.warehouse_staff_id;
     IF v_staff_status IS DISTINCT FROM 'ACTIVE' THEN
         RAISE EXCEPTION 'Nhan vien da ngung lam viec, khong duoc lap chung tu moi.';
+    END IF;
+
+    -- Ràng buộc: Nhân viên bán hàng không được nhập/hủy hàng
+    IF v_staff_pos NOT IN ('ROLE_WAREHOUSE', 'ROLE_ADMIN') THEN
+        RAISE EXCEPTION 'Nhan vien ban hang khong duoc nhap hoac huy hang (chi nhan vien kho hoac quan tri vien moi co quyen thuc hien).';
     END IF;
 
     SELECT status INTO v_warehouse_status FROM warehouses WHERE warehouse_id = NEW.warehouse_id;
@@ -534,11 +546,6 @@ BEGIN
         WHERE warehouse_id = v_warehouse_id AND batch_id = r.batch_id;
     END LOOP;
 
-    -- Cộng tiền vào tài khoản Chủ cửa hàng (Admin)
-    UPDATE employees
-    SET balance = balance + v_total
-    WHERE position = 'ROLE_ADMIN' AND work_status = 'ACTIVE';
-
     -- Đổi trạng thái hóa đơn sang PAID
     UPDATE invoices
     SET status = 'PAID'
@@ -546,7 +553,7 @@ BEGIN
 END;
 $$;
 
--- sp_confirm_import_slip: Deduct Admin balance, add inventory, status = 'IMPORTED'
+-- sp_confirm_import_slip: Add inventory, status = 'IMPORTED'
 CREATE OR REPLACE PROCEDURE sp_confirm_import_slip(p_import_slip_id BIGINT)
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -554,8 +561,6 @@ DECLARE
     v_status VARCHAR(30);
     v_total NUMERIC(15,2);
     v_item_count INT;
-    v_admin_balance NUMERIC(15,2);
-    v_admin_id BIGINT;
 BEGIN
     SELECT warehouse_id, status, total_amount INTO v_warehouse_id, v_status, v_total
     FROM import_slips
@@ -574,23 +579,6 @@ BEGIN
     IF v_item_count = 0 THEN
         RAISE EXCEPTION 'Phiếu nhập phải có ít nhất một dòng chi tiết hợp lệ.';
     END IF;
-
-    -- Khóa và kiểm tra số dư Admin
-    SELECT employee_id, balance INTO v_admin_id, v_admin_balance
-    FROM employees
-    WHERE position = 'ROLE_ADMIN' AND work_status = 'ACTIVE'
-    ORDER BY employee_id ASC
-    LIMIT 1
-    FOR UPDATE;
-
-    IF v_admin_balance IS NULL OR v_admin_balance < v_total THEN
-        RAISE EXCEPTION 'Số dư chủ cửa hàng không đủ';
-    END IF;
-
-    -- Trừ số dư Admin
-    UPDATE employees
-    SET balance = balance - v_total
-    WHERE employee_id = v_admin_id;
 
     -- Cộng tồn kho
     INSERT INTO inventories(warehouse_id, batch_id, quantity, updated_at)

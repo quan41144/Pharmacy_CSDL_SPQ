@@ -19,6 +19,8 @@ public class CustomerDTO {
     @NotNull(message = "Ngày sinh không được để trống")
     private LocalDate dateOfBirth;
 
+    private Integer age; // Thuộc tính dẫn xuất tính từ date_of_birth và ngày hiện tại (xét ngày và tháng sinh)
+
     private String gender;
     private String phone;
 

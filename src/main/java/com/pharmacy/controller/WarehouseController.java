@@ -5,6 +5,7 @@ import com.pharmacy.dto.WarehouseDTO;
 import com.pharmacy.service.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public class WarehouseController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<WarehouseDTO>> saveWarehouse(@RequestBody WarehouseDTO dto) {
         try {
             WarehouseDTO saved = warehouseService.saveWarehouse(dto);

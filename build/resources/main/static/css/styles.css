@@ -157,6 +157,20 @@ body {
     background: #bbf7d0;
 }
 
+.badge-profile {
+    background: #f1f5f9;
+    color: var(--gray-800);
+    cursor: pointer;
+    border: 1px solid var(--gray-300);
+    transition: all 0.2s;
+}
+
+.badge-profile:hover {
+    background: #e2e8f0;
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
 .btn-logout {
     background: transparent;
     border: 1px solid var(--gray-200);
@@ -414,6 +428,30 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
     border-color: var(--primary-light);
+}
+
+.product-card.out-of-stock {
+    opacity: 0.88;
+    border-color: #fecdd3;
+    background: #fffcfc;
+}
+
+.badge-stock-out {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #e11d48;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(225, 29, 72, 0.35);
+    z-index: 2;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .product-card-img {
@@ -770,12 +808,18 @@ body {
     gap: 0.75rem;
 }
 
-/* 4 KPI Cards */
+/* 3 KPI Cards */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
     margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .kpi-card {

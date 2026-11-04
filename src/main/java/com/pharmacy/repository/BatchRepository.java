@@ -31,7 +31,8 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     @Query("SELECT b FROM Batch b JOIN Inventory i ON i.batch.batchId = b.batchId " +
            "WHERE (:keyword IS NULL OR :keyword = '' OR LOWER(b.batchCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(b.product.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "AND (:warehouseId IS NULL OR i.warehouse.warehouseId = :warehouseId) " +
-           "AND i.quantity > 0")
+           "AND i.quantity > 0 " +
+           "ORDER BY b.expDate ASC")
     List<Batch> searchBatchesForDisposal(
             @Param("keyword") String keyword,
             @Param("warehouseId") Long warehouseId

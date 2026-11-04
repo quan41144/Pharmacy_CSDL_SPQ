@@ -7,6 +7,7 @@ import com.pharmacy.service.ImportSlipService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class ImportSlipController {
     private final ImportSlipService importSlipService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('WAREHOUSE', 'ADMIN')")
     public ResponseEntity<ApiResponse<ImportSlipResponseDTO>> createImportSlip(@Valid @RequestBody CreateImportSlipRequest request) {
         try {
             ImportSlipResponseDTO response = importSlipService.createImportSlip(request);
@@ -29,6 +31,7 @@ public class ImportSlipController {
     }
 
     @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ImportSlipResponseDTO>> confirmImportSlip(@PathVariable Long id) {
         try {
             ImportSlipResponseDTO response = importSlipService.confirmImportSlip(id);
@@ -39,6 +42,7 @@ public class ImportSlipController {
     }
 
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ImportSlipResponseDTO>> cancelImportSlip(@PathVariable Long id) {
         try {
             ImportSlipResponseDTO response = importSlipService.cancelImportSlip(id);

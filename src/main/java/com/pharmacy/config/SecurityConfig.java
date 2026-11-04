@@ -57,15 +57,12 @@ public class SecurityConfig {
                                 "/favicon.ico",
                                 "/error"
                         ).permitAll()
-                        // Public Auth & Catalog APIs
+                        // Public Auth APIs & Public PDF view
                         .requestMatchers(
                                 "/api/v1/auth/**",
-                                "/api/auth/**",
-                                "/api/categories/**",
-                                "/api/products/**",
                                 "/api/v1/invoices/*/pdf"
                         ).permitAll()
-                        // All other APIs require authentication or permit with JWT filter
+                        // All other APIs require authentication
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().permitAll()
                 )

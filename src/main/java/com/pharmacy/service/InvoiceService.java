@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,10 @@ public class InvoiceService {
             throw new RuntimeException("Nhân viên đã ngừng làm việc, không được lập hóa đơn.");
         }
 
+        if (!"ROLE_SALES".equalsIgnoreCase(staff.getPosition()) && !"ROLE_ADMIN".equalsIgnoreCase(staff.getPosition())) {
+            throw new RuntimeException("Nhân viên kho không được bán hàng. Chỉ nhân viên bán hàng hoặc quản trị viên mới được tạo hóa đơn.");
+        }
+
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
 
@@ -69,7 +75,18 @@ public class InvoiceService {
         BigDecimal total = BigDecimal.ZERO;
         List<InvoiceItem> items = new ArrayList<>();
 
+        // Quy ước đặc tả: Một lô xuất hiện tối đa một lần trong một chứng từ; nếu chọn lại cùng lô thì gộp số lượng.
+        Map<Long, InvoiceItemRequest> mergedItemsMap = new LinkedHashMap<>();
         for (InvoiceItemRequest itemReq : request.getItems()) {
+            if (mergedItemsMap.containsKey(itemReq.getBatchId())) {
+                InvoiceItemRequest existing = mergedItemsMap.get(itemReq.getBatchId());
+                existing.setQuantity(existing.getQuantity() + itemReq.getQuantity());
+            } else {
+                mergedItemsMap.put(itemReq.getBatchId(), new InvoiceItemRequest(itemReq.getBatchId(), itemReq.getQuantity(), itemReq.getUnitPrice()));
+            }
+        }
+
+        for (InvoiceItemRequest itemReq : mergedItemsMap.values()) {
             Batch batch = batchRepository.findById(itemReq.getBatchId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy lô hàng ID: " + itemReq.getBatchId()));
 
@@ -151,6 +168,27 @@ public class InvoiceService {
     @Transactional(readOnly = true)
     public List<InvoiceResponseDTO> getAllInvoices() {
         return invoiceRepository.findAllByOrderByInvoiceIdDesc().stream().map(this::toDTO).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceResponseDTO> searchInvoices(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return getAllInvoices();
+        }
+        String cleanKw = keyword.trim();
+        Long idFromCode = null;
+        if (cleanKw.toUpperCase().startsWith("PT")) {
+            try {
+                idFromCode = Long.parseLong(cleanKw.substring(2));
+            } catch (NumberFormatException ignored) {}
+        } else {
+            try {
+                idFromCode = Long.parseLong(cleanKw);
+            } catch (NumberFormatException ignored) {}
+        }
+        return invoiceRepository.searchInvoicesByCustomerOrCode(cleanKw, idFromCode).stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     public InvoiceResponseDTO toDTO(Invoice inv) {

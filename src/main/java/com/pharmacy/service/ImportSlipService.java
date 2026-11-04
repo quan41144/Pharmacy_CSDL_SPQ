@@ -47,6 +47,10 @@ public class ImportSlipService {
             throw new RuntimeException("Nhân viên đã ngừng làm việc, không được lập phiếu nhập.");
         }
 
+        if (!"ROLE_WAREHOUSE".equalsIgnoreCase(staff.getPosition()) && !"ROLE_ADMIN".equalsIgnoreCase(staff.getPosition())) {
+            throw new RuntimeException("Nhân viên bán hàng không được nhập hàng. Chỉ nhân viên kho hoặc quản trị viên mới được lập phiếu nhập.");
+        }
+
         Supplier supplier = supplierRepository.findById(request.getSupplierId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy nhà cung cấp"));
 
@@ -66,12 +70,6 @@ public class ImportSlipService {
 
         BigDecimal unitPrice = request.getUnitPrice() != null ? request.getUnitPrice() : BigDecimal.valueOf(10000.00);
         BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(request.getQuantity()));
-
-        // Kiểm tra số dư Admin ngay tại bước yêu cầu xác nhận
-        BigDecimal adminBalance = employeeService.getAdminBalance();
-        if (adminBalance.compareTo(totalAmount) < 0) {
-            throw new RuntimeException("Số dư chủ cửa hàng không đủ");
-        }
 
         // Tạo hoặc lấy lô thuốc
         Batch batch = batchRepository.findByBatchCode(request.getBatchCode()).orElse(null);

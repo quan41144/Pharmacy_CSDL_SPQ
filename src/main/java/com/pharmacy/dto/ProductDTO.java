@@ -20,4 +20,5 @@ public class ProductDTO {
     private BigDecimal sellingPrice;
     private String imageUrl;
     private Integer totalStock;
+    private String stockStatus; // CÒN HÀNG / HẾT HÀNG
 }

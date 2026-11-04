@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class InvoiceController {
     private final PdfExportService pdfExportService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SALES', 'ADMIN')")
     public ResponseEntity<ApiResponse<InvoiceResponseDTO>> createInvoice(@Valid @RequestBody CreateInvoiceRequest request) {
         try {
             InvoiceResponseDTO response = invoiceService.createInvoice(request);
@@ -33,6 +35,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/confirm-payment")
+    @PreAuthorize("hasAnyRole('SALES', 'ADMIN')")
     public ResponseEntity<ApiResponse<InvoiceResponseDTO>> confirmPayment(@PathVariable Long id) {
         try {
             InvoiceResponseDTO response = invoiceService.confirmPayment(id);
@@ -43,6 +46,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('SALES', 'ADMIN')")
     public ResponseEntity<ApiResponse<InvoiceResponseDTO>> cancelInvoice(@PathVariable Long id) {
         try {
             InvoiceResponseDTO response = invoiceService.cancelInvoice(id);
@@ -63,8 +67,10 @@ public class InvoiceController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<InvoiceResponseDTO>>> getAllInvoices() {
-        return ResponseEntity.ok(ApiResponse.ok(invoiceService.getAllInvoices()));
+    public ResponseEntity<ApiResponse<List<InvoiceResponseDTO>>> getAllInvoices(
+            @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(invoiceService.searchInvoices(keyword)));
     }
 
     @GetMapping("/{id}/pdf")

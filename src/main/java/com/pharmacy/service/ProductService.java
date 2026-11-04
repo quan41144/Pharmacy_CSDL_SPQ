@@ -126,6 +126,9 @@ public class ProductService {
             totalStock = inventoryRepository.getTotalStockByProduct(p.getProductId());
         }
 
+        int stock = totalStock != null ? totalStock : 0;
+        String status = stock > 0 ? "CÒN HÀNG" : "HẾT HÀNG";
+
         return ProductDTO.builder()
                 .productId(p.getProductId())
                 .categoryId(p.getCategory() != null ? p.getCategory().getCategoryId() : null)
@@ -137,7 +140,8 @@ public class ProductService {
                 .unit(p.getUnit())
                 .sellingPrice(p.getSellingPrice())
                 .imageUrl(p.getImageUrl())
-                .totalStock(totalStock != null ? totalStock : 0)
+                .totalStock(stock)
+                .stockStatus(status)
                 .build();
     }
 }
