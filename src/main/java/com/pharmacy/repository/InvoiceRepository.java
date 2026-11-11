@@ -29,4 +29,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt >= :start AND i.createdAt <= :end")
     BigDecimal sumPaidAmountByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(i) > 0 FROM Invoice i WHERE i.warehouse.warehouseId = :warehouseId")
+    boolean existsByWarehouseId(@Param("warehouseId") Long warehouseId);
 }

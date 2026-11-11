@@ -1,6 +1,7 @@
 package com.pharmacy.service;
 
 import com.pharmacy.dto.CreateDisposalSlipRequest;
+import com.pharmacy.dto.DisposalSlipItemRequest;
 import com.pharmacy.dto.DisposalSlipItemResponseDTO;
 import com.pharmacy.dto.DisposalSlipResponseDTO;
 import com.pharmacy.entity.*;
@@ -12,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +33,7 @@ public class DisposalSlipService {
     private jakarta.persistence.EntityManager entityManager;
 
     @Transactional
-    public DisposalSlipResponseDTO createAndConfirmDisposalSlip(CreateDisposalSlipRequest request) {
+    public DisposalSlipResponseDTO createDisposalSlip(CreateDisposalSlipRequest request) {
         String username = SecurityUtils.getCurrentUsername();
         if (username == null) {
             throw new RuntimeException("Chưa đăng nhập");
@@ -54,14 +57,46 @@ public class DisposalSlipService {
             throw new RuntimeException("Kho đã ngừng hoạt động, không được thao tác.");
         }
 
-        Batch batch = batchRepository.findById(request.getBatchId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy lô hàng"));
+        List<DisposalSlipItemRequest> itemsReq = request.getItems();
+        if (itemsReq == null || itemsReq.isEmpty()) {
+            if (request.getBatchId() != null) {
+                itemsReq = List.of(DisposalSlipItemRequest.builder()
+                        .batchId(request.getBatchId())
+                        .quantity(request.getQuantity())
+                        .reason(request.getReason())
+                        .build());
+            } else {
+                throw new RuntimeException("Phiếu hủy phải có ít nhất một lô hàng cần hủy");
+            }
+        }
 
-        Inventory inventory = inventoryRepository.findByWarehouseWarehouseIdAndBatchBatchId(request.getWarehouseId(), request.getBatchId())
-                .orElseThrow(() -> new RuntimeException("Lô thuốc không tồn tại trong kho này"));
+        // Validate all items
+        Map<Long, Integer> batchTotalQty = new LinkedHashMap<>();
+        for (DisposalSlipItemRequest it : itemsReq) {
+            if (it.getBatchId() == null) {
+                throw new RuntimeException("Mã lô không được để trống");
+            }
+            if (it.getQuantity() == null || it.getQuantity() <= 0) {
+                throw new RuntimeException("Số lượng hủy phải lớn hơn 0");
+            }
+            if (it.getReason() == null || it.getReason().trim().isEmpty()) {
+                throw new RuntimeException("Lý do hủy thuốc là bắt buộc");
+            }
+            batchTotalQty.merge(it.getBatchId(), it.getQuantity(), Integer::sum);
+        }
 
-        if (inventory.getQuantity() < request.getQuantity()) {
-            throw new RuntimeException("Số lượng hủy (" + request.getQuantity() + ") vượt quá tồn kho hiện tại (" + inventory.getQuantity() + ")");
+        for (Map.Entry<Long, Integer> entry : batchTotalQty.entrySet()) {
+            Long bId = entry.getKey();
+            int totalReqQty = entry.getValue();
+
+            Inventory inventory = inventoryRepository.findByWarehouseWarehouseIdAndBatchBatchId(request.getWarehouseId(), bId)
+                    .orElseThrow(() -> new RuntimeException("Lô thuốc #" + bId + " không tồn tại trong kho " + warehouse.getWarehouseName()));
+
+            if (inventory.getQuantity() < totalReqQty) {
+                Batch b = batchRepository.findById(bId).orElse(null);
+                String batchLabel = (b != null) ? (b.getBatchCode() + " - " + (b.getProduct() != null ? b.getProduct().getProductName() : "")) : ("#" + bId);
+                throw new RuntimeException("Số lượng hủy đề xuất (" + totalReqQty + ") vượt quá tồn kho hiện tại (" + inventory.getQuantity() + ") của lô " + batchLabel);
+            }
         }
 
         DisposalSlip slip = DisposalSlip.builder()
@@ -72,46 +107,42 @@ public class DisposalSlipService {
 
         DisposalSlip savedSlip = disposalSlipRepository.saveAndFlush(slip);
 
-        DisposalSlipItemId itemId = DisposalSlipItemId.builder()
-                .disposalSlipId(savedSlip.getDisposalSlipId())
-                .batchId(batch.getBatchId())
-                .build();
+        Map<Long, DisposalSlipItem> itemMap = new LinkedHashMap<>();
+        for (DisposalSlipItemRequest it : itemsReq) {
+            Batch batch = batchRepository.findById(it.getBatchId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy lô hàng #" + it.getBatchId()));
 
-        DisposalSlipItem item = DisposalSlipItem.builder()
-                .id(itemId)
-                .disposalSlip(savedSlip)
-                .batch(batch)
-                .quantity(request.getQuantity())
-                .reason(request.getReason())
-                .build();
+            Long bId = batch.getBatchId();
+            if (itemMap.containsKey(bId)) {
+                DisposalSlipItem existing = itemMap.get(bId);
+                existing.setQuantity(existing.getQuantity() + it.getQuantity());
+                existing.setReason(existing.getReason() + "; " + it.getReason().trim());
+            } else {
+                DisposalSlipItemId itemId = DisposalSlipItemId.builder()
+                        .disposalSlipId(savedSlip.getDisposalSlipId())
+                        .batchId(bId)
+                        .build();
 
-        disposalSlipItemRepository.saveAndFlush(item);
+                DisposalSlipItem item = DisposalSlipItem.builder()
+                        .id(itemId)
+                        .disposalSlip(savedSlip)
+                        .batch(batch)
+                        .quantity(it.getQuantity())
+                        .reason(it.getReason().trim())
+                        .build();
 
-        // Gọi Procedure để trừ tồn kho và chuyển trạng thái sang DISPOSED
-        try {
-            jdbcTemplate.execute("CALL sp_confirm_disposal_slip(" + savedSlip.getDisposalSlipId() + ")");
-            entityManager.clear();
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            if (msg != null && msg.contains("ERROR:")) {
-                int start = msg.indexOf("ERROR:") + 6;
-                int end = msg.indexOf("\n", start);
-                if (end > start) {
-                    msg = msg.substring(start, end).trim();
-                } else {
-                    msg = msg.substring(start).trim();
-                }
+                itemMap.put(bId, item);
             }
-            throw new RuntimeException("Xác nhận hủy thất bại: " + msg, e);
         }
 
-        DisposalSlip updated = disposalSlipRepository.findById(savedSlip.getDisposalSlipId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu hủy"));
-        return toDTO(updated);
+        disposalSlipItemRepository.saveAll(itemMap.values());
+        disposalSlipItemRepository.flush();
+
+        return toDTO(savedSlip);
     }
 
     @Transactional
-    public void confirmDisposalSlip(Long disposalSlipId) {
+    public DisposalSlipResponseDTO confirmDisposalSlip(Long disposalSlipId) {
         try {
             jdbcTemplate.execute("CALL sp_confirm_disposal_slip(" + disposalSlipId + ")");
             entityManager.clear();
@@ -128,6 +159,24 @@ public class DisposalSlipService {
             }
             throw new RuntimeException("Xác nhận hủy thất bại: " + msg, e);
         }
+
+        DisposalSlip updated = disposalSlipRepository.findById(disposalSlipId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu hủy"));
+        return toDTO(updated);
+    }
+
+    @Transactional
+    public DisposalSlipResponseDTO cancelDisposalSlip(Long disposalSlipId) {
+        DisposalSlip slip = disposalSlipRepository.findById(disposalSlipId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu hủy"));
+
+        if (!"PENDING".equalsIgnoreCase(slip.getStatus())) {
+            throw new RuntimeException("Chỉ được hủy/từ chối phiếu hủy khi đang ở trạng thái PENDING");
+        }
+
+        slip.setStatus("CANCELLED");
+        DisposalSlip saved = disposalSlipRepository.save(slip);
+        return toDTO(saved);
     }
 
     @Transactional(readOnly = true)

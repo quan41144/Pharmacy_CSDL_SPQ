@@ -202,16 +202,16 @@
                             <i class="fa-solid fa-check-double"></i> 2. Xác nhận thanh toán (Trừ kho)
                         </button>
                         <button class="btn-secondary" id="btn-print-k80" onclick="app.openK80Modal()" disabled>
-                            <i class="fa-solid fa-print"></i> 3. In hóa đơn (K80)
+                            <i class="fa-solid fa-print"></i> 3. In hóa đơn bán lẻ
                         </button>
                     </div>
                 </div>
             </div>
         </section>
 
-                <!-- 3. IMPORT SLIP VIEW -->
+        <!-- 3. IMPORT SLIP VIEW -->
         <section id="view-import" class="view-section">
-            <div class="slip-container">
+            <div class="slip-container" id="import-create-container">
                 <!-- Search Area -->
                 <div class="slip-search-card">
                     <h3 style="margin-bottom: 1rem; color: var(--primary);"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm Nhà cung cấp & Thuốc</h3>
@@ -234,7 +234,7 @@
 
                         <!-- 2. Tìm kiếm Thuốc cần nhập -->
                         <div style="position: relative;">
-                            <label style="font-size: 0.85rem; font-weight: 600;">2. Thuốc cần nhập (*)</label>
+                            <label style="font-size: 0.85rem; font-weight: 600;">2. Chọn thuốc để thêm lô (*)</label>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
                                 <input type="text" id="import-product-input" class="form-control" 
                                        placeholder="🔍 Tìm thuốc: Tên, Công dụng, Nhóm thuốc (gõ hoặc Enter)..." 
@@ -252,63 +252,98 @@
 
                 <!-- Main Import Slip Form -->
                 <div class="slip-main-card">
-                    <div class="slip-header-title">PHIẾU NHẬP HÀNG</div>
-                    <form id="form-import-slip" onsubmit="app.handleCreateImportSlip(event)">
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label>Tên thuốc (Read-only)</label>
-                                <input type="text" id="import-product-name-disp" class="form-control" readonly placeholder="Chưa chọn thuốc..." style="background: var(--gray-100);">
-                            </div>
-                            <div class="form-group">
-                                <label>Giá nhập mặc định</label>
-                                <input type="text" id="import-unit-price-disp" class="form-control" readonly value="10.000 VNĐ" style="background: var(--gray-100); font-weight: bold; color: var(--primary);">
-                            </div>
-                        </div>
-
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label>Kho nhập hàng</label>
-                                <select id="import-warehouse-select" class="form-control">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div class="slip-header-title" style="margin: 0;">PHIẾU NHẬP HÀNG</div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; margin: 0;"><i class="fa-solid fa-warehouse"></i> Kho nhập hàng (*):</label>
+                                <select id="import-warehouse-select" class="form-control" style="min-width: 200px;">
                                     <!-- Populated dynamically -->
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>Số lô sản xuất (Batch Code) (*)</label>
-                                <input type="text" id="import-batch-code" class="form-control" required placeholder="VD: LOT-AUG-2024C">
-                            </div>
+                            <button type="button" class="btn-secondary" style="white-space: nowrap; font-weight: 600;" onclick="app.triggerAddBatchClick()">
+                                <i class="fa-solid fa-plus-circle"></i> + Thêm lô thuốc
+                            </button>
+                        </div>
+                    </div>
+
+                    <form id="form-import-slip" onsubmit="app.handleCreateImportSlip(event)">
+                        <!-- Excel-like Items Table -->
+                        <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <span style="font-weight: 700; color: var(--primary); font-size: 0.95rem;">
+                                <i class="fa-solid fa-table"></i> Danh sách các lô thuốc cần nhập (Chung một NCC & một Kho nhập)
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--gray-500); font-style: italic;">
+                                Nhập trực tiếp số lượng, ngày tháng, đơn giá như bảng tính Excel
+                            </span>
                         </div>
 
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label>Ngày sản xuất (NSX) (*)</label>
-                                <input type="date" id="import-mfg-date" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Hạn sử dụng (HSD) (*)</label>
-                                <input type="date" id="import-exp-date" class="form-control" required>
-                            </div>
+                        <div class="table-responsive" style="border: 1px solid var(--gray-300); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <table class="data-table" id="import-items-table" style="margin: 0; background: white; width: 100%;">
+                                <thead style="background: #f8fafc; border-bottom: 2px solid var(--gray-300);">
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;">STT</th>
+                                        <th style="min-width: 170px;">Tên thuốc (*)</th>
+                                        <th style="min-width: 140px;">Số lô NSX (*)</th>
+                                        <th style="min-width: 130px;">NSX (*)</th>
+                                        <th style="min-width: 130px;">HSD (*)</th>
+                                        <th style="width: 95px; text-align: right;">Số lượng (*)</th>
+                                        <th style="width: 125px; text-align: right;">Đơn giá nhập (đ) (*)</th>
+                                        <th style="width: 125px; text-align: right;">Thành tiền (đ)</th>
+                                        <th style="width: 45px; text-align: center;">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="import-items-tbody">
+                                    <!-- Rendered dynamically by app.renderImportItemsTable() -->
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div class="form-group">
-                            <label>Số lượng nhập (*)</label>
-                            <input type="number" id="import-quantity" class="form-control" required min="1" value="100" oninput="app.calcImportTotal()">
-                        </div>
-
-                        <div id="import-calc-box" class="import-calc-box" style="margin-bottom: 1.25rem; font-weight: bold; color: var(--primary-dark);">
-                            Tổng tiền cần thanh toán: 1.000.000 VNĐ
+                        <div id="import-calc-box" class="import-calc-box" style="margin-bottom: 1.25rem; font-weight: bold; color: var(--primary-dark); display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem 1.25rem; border-radius: 8px;">
+                            <span><i class="fa-solid fa-boxes-stacked"></i> Số lượng lô: <strong id="import-total-batches-count">0</strong> lô</span>
+                            <span style="font-size: 1.15rem;">Tổng tiền cần thanh toán: <strong id="import-total-amount-display" style="color: #15803d; font-size: 1.3rem;">0 VNĐ</strong></span>
                         </div>
 
                         <button type="submit" class="btn-primary" id="btn-submit-import" style="width: 100%; padding: 1rem; font-size: 1.05rem;">
-                            <i class="fa-solid fa-paper-plane"></i> Yêu cầu xác nhận
+                            <i class="fa-solid fa-paper-plane"></i> Lập phiếu nhập (Gửi Admin duyệt)
                         </button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Import Slips List Table -->
+            <div class="data-card" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3 style="margin: 0; color: var(--primary-dark);"><i class="fa-solid fa-list-check"></i> Danh sách Phiếu nhập hàng</h3>
+                    <button class="btn-secondary" onclick="app.loadImportSlipsList()"><i class="fa-solid fa-rotate"></i> Tải lại danh sách</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Mã phiếu</th>
+                                <th>Nhà cung cấp</th>
+                                <th>Nhân viên kho</th>
+                                <th>Kho nhập</th>
+                                <th>Thuốc & Lô nhập</th>
+                                <th style="text-align: right;">Số lượng nhập</th>
+                                <th style="text-align: right;">Tổng tiền</th>
+                                <th>Ngày lập</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                                <th style="text-align: center;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-slips-list-tbody">
+                            <tr><td colspan="10" style="text-align: center; color: var(--gray-500);">Đang tải danh sách phiếu nhập...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
 
         <!-- 4. DISPOSAL SLIP VIEW -->
         <section id="view-disposal" class="view-section">
-            <div class="slip-container">
+            <div class="slip-container" id="disposal-create-container">
                 <!-- Batch Search Area -->
                 <div class="slip-search-card">
                     <h3 style="margin-bottom: 0.75rem; color: #b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Tìm kiếm lô hàng cần hủy</h3>
@@ -316,11 +351,14 @@
                         <label style="font-size: 0.85rem; font-weight: 600; color: #92400e;">1. Chọn hoặc tìm kiếm Lô hàng / Thuốc (*)</label>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
                             <input type="text" id="disposal-batch-input" class="form-control" 
-                                   placeholder="🔍 Tìm lô/thuốc: Mã lô, Tên thuốc (click để xem gợi ý, gõ hoặc Enter)..." 
+                                   placeholder="🔍 Tìm nhanh lô/thuốc: Mã lô, Tên thuốc (click xem gợi ý, gõ hoặc Enter)..." 
                                    onfocus="app.onDisposalBatchSearchFocus()"
                                    oninput="app.onDisposalBatchSearchInput(this.value)"
                                    onkeydown="app.onDisposalBatchSearchKeydown(event)"
                                    autocomplete="off">
+                            <button type="button" class="btn-secondary" style="white-space: nowrap; font-weight: 600;" onclick="app.openSelectDisposalBatchesModal()">
+                                <i class="fa-solid fa-list-check"></i> Chọn từ danh sách kho
+                            </button>
                         </div>
                         <div class="live-dropdown" id="disposal-batch-dropdown"></div>
                         <div id="disposal-selected-batch-card" style="margin-top: 0.35rem;"></div>
@@ -329,44 +367,89 @@
 
                 <!-- Main Disposal Slip Form -->
                 <div class="slip-main-card">
-                    <div class="slip-header-title" style="color: #b45309;">PHIẾU HỦY HÀNG</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div class="slip-header-title" style="color: #b45309; margin: 0;">PHIẾU HỦY HÀNG</div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; margin: 0; color: #92400e;"><i class="fa-solid fa-warehouse"></i> Kho xuất hủy (*):</label>
+                                <select id="disposal-warehouse-select" class="form-control" style="min-width: 200px;" onchange="app.onDisposalWarehouseChange(this.value)">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <button type="button" class="btn-secondary" style="white-space: nowrap; font-weight: 600;" onclick="app.openSelectDisposalBatchesModal()">
+                                <i class="fa-solid fa-plus-circle"></i> + Thêm lô cần hủy
+                            </button>
+                        </div>
+                    </div>
+
                     <form id="form-disposal-slip" onsubmit="app.handleCreateDisposalSlip(event)">
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label>Mã lô (Read-only)</label>
-                                <input type="text" id="disposal-batch-code-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
-                            </div>
-                            <div class="form-group">
-                                <label>Tên thuốc</label>
-                                <input type="text" id="disposal-product-name-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
-                            </div>
+                        <!-- Excel-like Items Table -->
+                        <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <span style="font-weight: 700; color: #b45309; font-size: 0.95rem;">
+                                <i class="fa-solid fa-table"></i> Danh sách các lô thuốc đề xuất tiêu hủy (Chung một Kho)
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--gray-500); font-style: italic;">
+                                Kiểm tra tồn kho và nhập trực tiếp số lượng, lý do hủy như bảng tính Excel
+                            </span>
                         </div>
 
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label>Kho chứa lô hàng</label>
-                                <input type="text" id="disposal-warehouse-name-disp" class="form-control" readonly placeholder="Chưa chọn lô..." style="background: var(--gray-100);">
-                            </div>
-                            <div class="form-group">
-                                <label>Số lượng tồn hiện tại</label>
-                                <input type="text" id="disposal-stock-disp" class="form-control" readonly placeholder="0" style="background: var(--gray-100); font-weight: bold; color: var(--danger);">
-                            </div>
+                        <div class="table-responsive" style="border: 1px solid var(--gray-300); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <table class="data-table" id="disposal-items-table" style="margin: 0; background: white; width: 100%;">
+                                <thead style="background: #fffbeb; border-bottom: 2px solid #fde68a;">
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;">STT</th>
+                                        <th style="min-width: 170px;">Tên thuốc (*)</th>
+                                        <th style="min-width: 130px;">Số lô NSX (*)</th>
+                                        <th style="min-width: 140px;">HSD / Trạng thái</th>
+                                        <th style="width: 95px; text-align: right;">Tồn kho</th>
+                                        <th style="width: 110px; text-align: right;">SL Hủy (*)</th>
+                                        <th style="min-width: 200px;">Lý do hủy (*) (Hết hạn, mốc, vỡ...)</th>
+                                        <th style="width: 45px; text-align: center;">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="disposal-items-tbody">
+                                    <!-- Rendered dynamically by app.renderDisposalItemsTable() -->
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div class="form-group">
-                            <label>Số lượng hủy (*)</label>
-                            <input type="number" id="disposal-quantity" class="form-control" required min="1" placeholder="Nhập số lượng hủy...">
+                        <div id="disposal-calc-box" style="margin-bottom: 1.25rem; font-weight: bold; color: #92400e; display: flex; justify-content: space-between; align-items: center; background: #fff7ed; border: 1px solid #fed7aa; padding: 0.85rem 1.25rem; border-radius: 8px;">
+                            <span><i class="fa-solid fa-boxes-stacked"></i> Số lượng lô đề xuất hủy: <strong id="disposal-total-batches-count">0</strong> lô</span>
+                            <span style="font-size: 1.15rem;">Tổng số lượng thuốc tiêu hủy: <strong id="disposal-total-qty-display" style="color: #c2410c; font-size: 1.3rem;">0</strong></span>
                         </div>
 
-                        <div class="form-group">
-                            <label>Lý do hủy (*) (Bắt buộc ghi rõ nguyên nhân: Hết hạn, ẩm mốc, vỡ bể...)</label>
-                            <textarea id="disposal-reason" class="form-control" rows="3" required placeholder="Nhập lý do hủy thuốc..."></textarea>
-                        </div>
-
-                        <button type="submit" class="btn-danger" style="width: 100%; padding: 1rem; font-size: 1.05rem;">
-                            <i class="fa-solid fa-fire"></i> Xác nhận hủy
+                        <button type="submit" class="btn-danger" id="btn-submit-disposal" style="width: 100%; padding: 1rem; font-size: 1.05rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Lập phiếu hủy (Gửi Admin duyệt)
                         </button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Disposal Slips List Table -->
+            <div class="data-card" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3 style="margin: 0; color: #b45309;"><i class="fa-solid fa-list-check"></i> Danh sách Phiếu hủy hàng</h3>
+                    <button class="btn-secondary" onclick="app.loadDisposalSlipsList()"><i class="fa-solid fa-rotate"></i> Tải lại danh sách</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Mã phiếu</th>
+                                <th>Nhân viên kho</th>
+                                <th>Kho chứa</th>
+                                <th>Thuốc & Lô hàng</th>
+                                <th style="text-align: right;">Số lượng hủy</th>
+                                <th>Lý do hủy</th>
+                                <th>Ngày lập / hủy</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                                <th style="text-align: center;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disposal-slips-list-tbody">
+                            <tr><td colspan="9" style="text-align: center; color: var(--gray-500);">Đang tải danh sách phiếu hủy...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -447,10 +530,11 @@
 
             <!-- 3 Tables in Tabs -->
             <div class="data-card">
-                <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1rem; padding-bottom: 0.5rem; flex-wrap: wrap;">
                     <button class="cat-pill active" id="tab-btn-rep-inv" onclick="app.switchReportTab('invoices')">1. Hóa đơn doanh thu trong kỳ</button>
                     <button class="cat-pill" id="tab-btn-rep-imp" onclick="app.switchReportTab('imports')">2. Phiếu nhập hàng (Phê duyệt)</button>
-                    <button class="cat-pill" id="tab-btn-rep-stock" onclick="app.switchReportTab('stock')">3. Bảng kê tồn kho theo lô</button>
+                    <button class="cat-pill" id="tab-btn-rep-disp" onclick="app.switchReportTab('disposals')">3. Phiếu hủy hàng (Phê duyệt)</button>
+                    <button class="cat-pill" id="tab-btn-rep-stock" onclick="app.switchReportTab('stock')">4. Bảng kê tồn kho theo lô</button>
                 </div>
 
                 <!-- Tab 1: Invoices -->
@@ -476,17 +560,39 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Mã phiếu</th>
+                                <th style="width: 80px;">Mã phiếu</th>
                                 <th>Nhà cung cấp</th>
                                 <th>Nhân viên kho</th>
                                 <th>Kho nhập</th>
-                                <th>Ngày nhập</th>
+                                <th>Thuốc & Lô nhập</th>
+                                <th style="text-align: right;">Số lượng nhập</th>
                                 <th style="text-align: right;">Tổng tiền</th>
+                                <th>Ngày lập</th>
                                 <th style="text-align: center;">Trạng thái</th>
                                 <th style="text-align: center;">Thao tác phê duyệt</th>
                             </tr>
                         </thead>
                         <tbody id="report-imports-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Tab 3: Disposals -->
+                <div id="rep-tab-disposals" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Mã phiếu</th>
+                                <th>Nhân viên kho</th>
+                                <th>Kho chứa</th>
+                                <th>Thuốc & Lô hàng</th>
+                                <th style="text-align: right;">Số lượng hủy</th>
+                                <th>Lý do hủy</th>
+                                <th>Ngày lập / hủy</th>
+                                <th style="text-align: center;">Trạng thái</th>
+                                <th style="text-align: center;">Thao tác phê duyệt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-disposals-body"></tbody>
                     </table>
                 </div>
 
@@ -583,64 +689,132 @@
         </div>
     </div>
 
-    <!-- Modal 2: K80 Thermal Receipt Preview -->
+    <!-- Modal 2: Retail Invoice Preview (Form Hóa đơn bán lẻ Chuẩn) -->
     <div class="modal-overlay" id="modal-k80">
         <div class="modal-content k80-modal-content">
             <div class="modal-header">
-                <h3>Xem trước Hóa đơn K80</h3>
+                <h3><i class="fa-solid fa-receipt" style="color: #008744;"></i> Hóa đơn bán hàng - Pharmacy</h3>
                 <button class="modal-close" onclick="app.closeModal('modal-k80')">&times;</button>
             </div>
             <div class="k80-receipt-preview-wrap">
-                <!-- Standard K80 Container -->
-                <div id="k80-receipt">
-                    <div class="k80-header">
-                        <div class="k80-title-brand">PHARMACY</div>
-                        <div class="k80-phone">ĐT: 02773766999</div>
-                        <div class="k80-title-doc">HÓA ĐƠN BÁN LẺ</div>
-                        <div class="k80-line"></div>
+                <!-- Retail Invoice Paper Container -->
+                <div id="k80-receipt" class="retail-invoice-paper">
+                    <!-- Right edge vertical watermark text -->
+                    <div class="invoice-side-watermark">In tại hệ thống Nhà thuốc PHARMACY - Hotline: 0962416952</div>
+
+                    <!-- Subtle background watermark -->
+                    <div class="invoice-bg-watermark">
+                        <svg viewBox="0 0 100 100" class="watermark-svg">
+                            <path d="M42 20 H58 V42 H80 V58 H58 V80 H42 V58 H20 V42 H42 Z" fill="none" stroke="#008744" stroke-width="2"/>
+                            <path d="M28 65 C32 80 68 80 72 65 Z" fill="none" stroke="#008744" stroke-width="2"/>
+                            <path d="M48 40 C48 30 52 30 52 40 C52 48 46 54 54 62" fill="none" stroke="#008744" stroke-width="2"/>
+                        </svg>
                     </div>
 
-                    <div class="k80-meta">
-                        <p><strong>Ngày mua:</strong> <span id="k80-date">03/11/2026 14:30:00</span></p>
-                        <p><strong>NV bán hàng:</strong> <span id="k80-staff">Nguyễn Thị Bán Hàng</span></p>
-                        <p><strong>Người mua:</strong> <span id="k80-customer">KHVL</span></p>
-                        <p><strong>Số HĐ:</strong> <span id="k80-code">PT00001</span></p>
-                        <div class="k80-line"></div>
-                    </div>
-
-                    <table class="k80-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 8%;">TT</th>
-                                <th style="width: 38%; text-align: left;">Tên hàng</th>
-                                <th style="width: 14%;">ĐVT</th>
-                                <th style="width: 10%; text-align: right;">SL</th>
-                                <th style="width: 15%; text-align: right;">ĐG</th>
-                                <th style="width: 15%; text-align: right;">Thành tiền</th>
-                            </tr>
-                        </thead>
-                        <tbody id="k80-items-body"></tbody>
-                    </table>
-
-                    <div class="k80-line"></div>
-
-                    <div class="k80-summary">
-                        <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                            <span>Tổng SL: <span id="k80-total-qty">0</span></span>
-                            <span>Tổng TT: <span id="k80-total-amount">0</span> đ</span>
+                    <!-- Header: Logo + Pharmacy Info -->
+                    <div class="retail-inv-header">
+                        <div class="retail-inv-logo-col">
+                            <div class="retail-logo-circle">
+                                <svg viewBox="0 0 100 100" class="retail-emblem-svg">
+                                    <circle cx="50" cy="50" r="44" fill="none" stroke="#008744" stroke-width="4.5" stroke-dasharray="24 6 28 6 24 6"/>
+                                    <path d="M43 28 H57 V43 H72 V57 H57 V72 H43 V57 H28 V43 H43 Z" fill="#008744"/>
+                                    <path d="M22 62 C15 48 24 35 34 32 C31 43 35 55 22 62 Z" fill="#008744"/>
+                                    <path d="M78 62 C85 48 76 35 66 32 C69 43 65 55 78 62 Z" fill="#008744"/>
+                                </svg>
+                            </div>
+                            <div class="retail-logo-brand">NHÀ THUỐC PHARMACY</div>
                         </div>
-                        <div class="k80-words">
-                            <em>Viết bằng chữ: <strong><span id="k80-words-val"></span></strong></em>
+
+                        <div class="retail-inv-brand-info">
+                            <div class="brand-pharmacy-title">NHÀ THUỐC PHARMACY</div>
+                            <div class="brand-detail-line">
+                                <i class="fa-solid fa-location-dot"></i> <span id="k80-warehouse-address">Kho Tổng - 123 Đường Giải Phóng, Hà Nội</span>
+                            </div>
+                            <div class="brand-detail-line">
+                                <i class="fa-solid fa-phone"></i> <strong>0962416952</strong>
+                            </div>
+                            <div class="brand-slogan-line">
+                                <em>Chăm Sóc Sức Khỏe – Chia Sẻ Niềm Vui</em>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="k80-footer">
-                        <em>Cảm ơn quý khách hàng đã mua hàng<br>
-                        Rất mong nhận được sự góp ý về phương thức phục vụ, giá cả, chất lượng của chúng tôi</em>
+                    <!-- Document Title & Code -->
+                    <div class="retail-inv-title-wrap">
+                        <h2 class="retail-inv-title">HÓA ĐƠN BÁN HÀNG</h2>
+                        <div class="retail-inv-code">Số: <strong id="k80-code">PT00001</strong></div>
+                    </div>
+
+                    <!-- Customer Info Section -->
+                    <div class="retail-cust-info">
+                        <div class="cust-row-grid">
+                            <div class="cust-field">
+                                <span class="lbl">Tên khách hàng:</span>
+                                <span class="val dots-line" id="k80-customer">Nguyễn Văn A</span>
+                            </div>
+                            <div class="cust-field cust-phone-field">
+                                <span class="lbl">Điện thoại:</span>
+                                <span class="val dots-line" id="k80-customer-phone">0912345678</span>
+                            </div>
+                        </div>
+                        <div class="cust-row-grid">
+                            <div class="cust-field" style="width: 100%;">
+                                <span class="lbl">Địa chỉ:</span>
+                                <span class="val dots-line" id="k80-customer-address">Số 10 Phố Huế, Hoàn Kiếm, Hà Nội</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="retail-table-wrap">
+                        <table class="retail-inv-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 7%;">TT</th>
+                                    <th style="width: 48%; text-align: left; padding-left: 10px;">Hàng hóa</th>
+                                    <th style="width: 13%;">Số lượng</th>
+                                    <th style="width: 16%; text-align: right; padding-right: 8px;">Đơn giá</th>
+                                    <th style="width: 16%; text-align: right; padding-right: 10px;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody id="k80-items-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Subtotal "Cộng" Box -->
+                    <div class="retail-subtotal-row">
+                        <div class="subtotal-badge-box">
+                            <span class="subtotal-lbl">Cộng</span>
+                            <span class="subtotal-val" id="k80-total-amount">0</span> <span class="subtotal-curr">đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Amount in words -->
+                    <div class="retail-amount-words">
+                        <em>Thành tiền bằng chữ:</em> <strong id="k80-words-val"></strong>
+                    </div>
+
+                    <!-- Notes & Pharmacist Sign -->
+                    <div class="retail-bottom-grid">
+                        <div class="retail-note-box">
+                            <div class="note-box-title">Ghi chú:</div>
+                            <div class="note-box-content" id="k80-note">Hàng mua theo đơn, bảo quản nơi khô ráo thoáng mát.</div>
+                        </div>
+                        <div class="retail-sign-col">
+                            <div class="sign-date">Ngày <span id="k80-day">..</span> tháng <span id="k80-month">..</span> năm 20<span id="k80-year">..</span></div>
+                            <div class="sign-role">DƯỢC SỸ</div>
+                            <div class="sign-hint">(Ký, ghi rõ họ tên)</div>
+                            <div class="sign-staff-name" id="k80-staff">Nguyễn Văn Bán Hàng</div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Return Policy Banner -->
+                    <div class="retail-return-banner">
+                        Quý khách được đổi trả trong vòng 5 - 7 ngày, xin cảm ơn Quý khách!
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="background: white;">
+            <div class="modal-footer" style="background: white; border-top: 1px solid #e5e7eb;">
                 <button class="btn-primary" onclick="app.printK80Direct()"><i class="fa-solid fa-print"></i> In ngay</button>
                 <button class="btn-success" onclick="app.downloadK80Pdf()"><i class="fa-solid fa-file-pdf"></i> Tải PDF</button>
                 <button class="btn-secondary" onclick="app.closeModal('modal-k80')">Đóng</button>
@@ -946,6 +1120,57 @@
         </div>
     </div>
 
+        <!-- Modal: Select Multiple Batches for Disposal -->
+    <div class="modal-overlay" id="modal-select-disposal-batches" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-header" style="background: #fffbeb; border-bottom: 2px solid #fde68a;">
+                <h3 style="color: #b45309; margin: 0;"><i class="fa-solid fa-boxes-stacked"></i> Chọn lô thuốc cần hủy từ kho</h3>
+                <button type="button" class="modal-close" onclick="app.closeModal('modal-select-disposal-batches')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="position: relative; flex: 1; min-width: 260px;">
+                        <input type="text" id="modal-disposal-search-filter" class="form-control" 
+                               placeholder="🔍 Lọc theo tên thuốc hoặc mã lô trong kho..." 
+                               oninput="app.filterDisposalBatchesModal(this.value)">
+                    </div>
+                    <div style="font-size: 0.88rem; color: #92400e; font-weight: 600;">
+                        Kho xuất hủy: <strong id="modal-disposal-warehouse-name">-</strong> | Đã chọn: <span id="modal-disposal-selected-count" style="color: var(--danger); font-size: 1.15rem; font-weight: 700;">0</span> lô
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--gray-200); border-radius: 6px;">
+                    <table class="data-table" style="margin: 0;">
+                        <thead style="position: sticky; top: 0; background: #fff7ed; z-index: 10; border-bottom: 2px solid #fed7aa;">
+                            <tr>
+                                <th style="width: 45px; text-align: center;">
+                                    <input type="checkbox" id="modal-disposal-check-all" onchange="app.toggleAllDisposalModalBatches(this.checked)">
+                                </th>
+                                <th style="min-width: 200px;">Tên thuốc</th>
+                                <th style="min-width: 130px;">Số lô SX</th>
+                                <th style="min-width: 120px;">Hạn sử dụng</th>
+                                <th style="width: 120px; text-align: center;">Trạng thái</th>
+                                <th style="width: 110px; text-align: right;">Tồn kho</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-disposal-batches-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <span style="font-size: 0.82rem; color: var(--gray-600);"><i class="fa-solid fa-circle-info"></i> Tích chọn một hoặc nhiều lô muốn tiêu hủy, sau đó nhấn nút xác nhận bên phải.</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn-primary" style="background: #b45309; border-color: #92400e;" onclick="app.confirmAddModalDisposalBatches()">
+                        <i class="fa-solid fa-plus-circle"></i> Thêm các lô đã chọn vào phiếu hủy
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="app.closeModal('modal-select-disposal-batches')">Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= CENTER 2-SECOND TOAST POPUP ================= -->
     <div class="center-toast-overlay" id="center-toast-overlay">
         <div class="center-toast-card" id="center-toast-card">
@@ -975,7 +1200,7 @@
             </tr>
         </table>
 
-        <h4 style="margin-top: 20px;">II. DANH SÁCH HÓA ĐƠN TRONG KỲ</h4>
+        <h4 style="margin-top: 20px;">II. DANH SÁCH HÓA ĐƠN ĐÃ HOÀN THÀNH TRONG KỲ</h4>
         <table class="a4-table">
             <thead>
                 <tr>

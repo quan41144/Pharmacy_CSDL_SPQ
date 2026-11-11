@@ -21,4 +21,7 @@ public interface ImportSlipRepository extends JpaRepository<ImportSlip, Long> {
 
     @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM ImportSlip i WHERE i.status = 'IMPORTED' AND i.importDate >= :start AND i.importDate <= :end")
     BigDecimal sumImportAmountByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(i) > 0 FROM ImportSlip i WHERE i.warehouse.warehouseId = :warehouseId")
+    boolean existsByWarehouseId(@Param("warehouseId") Long warehouseId);
 }

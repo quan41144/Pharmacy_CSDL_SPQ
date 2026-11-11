@@ -31,7 +31,9 @@ const app = {
         // Selected items for slips
         selectedImportSupplier: null,
         selectedImportProduct: null,
+        importSlipItems: [],
         selectedDisposalBatch: null,
+        disposalSlipItems: [],
         // Report
         reportFilterType: 'MONTH',
         reportFilterValue: '',
@@ -268,9 +270,15 @@ const app = {
         } else if (viewName === 'admin-mgmt') {
             this.switchMgmtTab(this.state.activeMgmtTab);
         } else if (viewName === 'import') {
+            const createContainer = document.getElementById('import-create-container');
+            if (createContainer) createContainer.style.display = 'grid';
             this.initImportView();
+            this.loadImportSlipsList();
         } else if (viewName === 'disposal') {
+            const createContainer = document.getElementById('disposal-create-container');
+            if (createContainer) createContainer.style.display = 'grid';
             this.initDisposalView();
+            this.loadDisposalSlipsList();
         }
     },
 
@@ -283,17 +291,20 @@ const app = {
                 const selectPos = document.getElementById('pos-warehouse-select');
                 const selectImp = document.getElementById('import-warehouse-select');
                 const selectEmp = document.getElementById('emp-warehouse-select');
+                const selectDis = document.getElementById('disposal-warehouse-select');
 
                 const optionsHtml = res.data.map(w => `<option value="${w.warehouseId}">${w.warehouseName}</option>`).join('');
 
                 if (selectPos) selectPos.innerHTML = optionsHtml;
                 if (selectImp) selectImp.innerHTML = optionsHtml;
                 if (selectEmp) selectEmp.innerHTML = optionsHtml;
+                if (selectDis) selectDis.innerHTML = optionsHtml;
 
                 if (this.state.user && this.state.user.warehouseId) {
                     this.state.activeWarehouseId = this.state.user.warehouseId;
                     if (selectPos) selectPos.value = this.state.user.warehouseId;
                     if (selectImp) selectImp.value = this.state.user.warehouseId;
+                    if (selectDis) selectDis.value = this.state.user.warehouseId;
                 } else if (res.data.length > 0) {
                     this.state.activeWarehouseId = res.data[0].warehouseId;
                 }
@@ -777,45 +788,102 @@ const app = {
         }
     },
 
-    // ================= K80 THERMAL RECEIPT =================
+    // ================= RETAIL INVOICE FORM MODAL =================
     openK80Modal(inv = null) {
         const invoice = inv || this.state.activeInvoice;
         if (!invoice) return;
 
+        if (invoice.status === 'CANCELLED') {
+            this.showCenterToast('⚠️ Hóa đơn đã hủy, không thể in!', 'red', 2500);
+            return;
+        }
+
         this.state.activeInvoice = invoice;
 
-        document.getElementById('k80-date').textContent = this.formatDateTime(invoice.createdAt);
-        document.getElementById('k80-staff').textContent = invoice.salesStaffName;
-        document.getElementById('k80-customer').textContent = invoice.customerName || 'KHVL';
-        document.getElementById('k80-code').textContent = invoice.invoiceCode;
+        // Populate Warehouse & General Info
+        const whAddr = invoice.warehouseAddress || (this.state.currentWarehouse ? this.state.currentWarehouse.warehouseAddress : '') || 'Số 123 Đường Giải Phóng, Hai Bà Trưng, Hà Nội';
+        const whEl = document.getElementById('k80-warehouse-address');
+        if (whEl) whEl.textContent = whAddr;
 
-        let totalQty = 0;
+        const codeEl = document.getElementById('k80-code');
+        if (codeEl) codeEl.textContent = invoice.invoiceCode || 'PT00001';
+
+        // Populate Customer Info
+        const custEl = document.getElementById('k80-customer');
+        if (custEl) custEl.textContent = invoice.customerName || 'Khách lẻ';
+
+        const phoneEl = document.getElementById('k80-customer-phone');
+        if (phoneEl) phoneEl.textContent = invoice.customerPhone || '..........................';
+
+        const addrEl = document.getElementById('k80-customer-address');
+        if (addrEl) addrEl.textContent = invoice.customerAddress || '....................................................................';
+
+        // Populate Goods Table
         let html = '';
+        let count = 0;
         if (invoice.items) {
             invoice.items.forEach((it, idx) => {
-                totalQty += it.quantity;
+                count++;
+                const prodLabel = it.productName + (it.unit ? ` (${it.unit})` : '');
                 html += `
                     <tr>
                         <td style="text-align: center;">${idx + 1}</td>
-                        <td style="text-align: left; font-weight: bold;">${it.productName.toUpperCase()}</td>
-                        <td style="text-align: center;">${it.unit}</td>
-                        <td style="text-align: right;">${it.quantity}</td>
-                        <td style="text-align: right;">${app.formatCurrency(it.unitPrice)}</td>
-                        <td style="text-align: right;">${app.formatCurrency(it.subTotal)}</td>
+                        <td style="text-align: left; font-weight: 600; padding-left: 10px;">${prodLabel}</td>
+                        <td style="text-align: center;">${it.quantity}</td>
+                        <td style="text-align: right; padding-right: 8px;">${app.formatCurrency(it.unitPrice)}</td>
+                        <td style="text-align: right; padding-right: 10px; font-weight: 600;">${app.formatCurrency(it.subTotal)}</td>
                     </tr>
                 `;
             });
         }
 
+        // Pad empty rows up to 12 rows for the authentic A4 voucher pad look
+        for (let i = count + 1; i <= 12; i++) {
+            html += `
+                <tr style="height: 28px;">
+                    <td style="text-align: center; color: #9ca3af;">${i}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            `;
+        }
         document.getElementById('k80-items-body').innerHTML = html;
-        document.getElementById('k80-total-qty').textContent = totalQty;
-        document.getElementById('k80-total-amount').textContent = this.formatCurrency(invoice.totalAmount);
-        document.getElementById('k80-words-val').textContent = invoice.totalAmountInWords || this.numberToVietnameseWords(invoice.totalAmount);
+
+        // Subtotal & Words
+        const totalEl = document.getElementById('k80-total-amount');
+        if (totalEl) totalEl.textContent = this.formatCurrency(invoice.totalAmount);
+
+        const wordsEl = document.getElementById('k80-words-val');
+        if (wordsEl) wordsEl.textContent = invoice.totalAmountInWords || this.numberToVietnameseWords(invoice.totalAmount);
+
+        // Note
+        const noteEl = document.getElementById('k80-note');
+        if (noteEl) noteEl.textContent = (invoice.note && invoice.note.trim()) ? invoice.note : 'Hàng mua theo đơn, bảo quản nơi khô ráo thoáng mát.';
+
+        // Date breakdown & Pharmacist (Dược sỹ là tên người bán)
+        const d = invoice.createdAt ? new Date(invoice.createdAt) : new Date();
+        const dayEl = document.getElementById('k80-day');
+        if (dayEl) dayEl.textContent = String(d.getDate()).padStart(2, '0');
+
+        const monthEl = document.getElementById('k80-month');
+        if (monthEl) monthEl.textContent = String(d.getMonth() + 1).padStart(2, '0');
+
+        const yearEl = document.getElementById('k80-year');
+        if (yearEl) yearEl.textContent = String(d.getFullYear()).slice(-2);
+
+        const staffEl = document.getElementById('k80-staff');
+        if (staffEl) staffEl.textContent = invoice.salesStaffName || 'Dược sỹ bán hàng';
 
         this.openModal('modal-k80');
     },
 
     printK80Direct() {
+        if (!this.state.activeInvoice || this.state.activeInvoice.status === 'CANCELLED') {
+            this.showCenterToast('⚠️ Hóa đơn đã hủy, không thể in!', 'red', 2500);
+            return;
+        }
         document.body.classList.add('printing-k80');
         window.print();
         setTimeout(() => {
@@ -825,6 +893,10 @@ const app = {
 
     downloadK80Pdf() {
         if (!this.state.activeInvoice) return;
+        if (this.state.activeInvoice.status === 'CANCELLED') {
+            this.showCenterToast('⚠️ Hóa đơn đã hủy, không thể xuất PDF!', 'red', 2500);
+            return;
+        }
         window.open(`/api/v1/invoices/${this.state.activeInvoice.invoiceId}/pdf`, '_blank');
     },
 
@@ -857,16 +929,10 @@ const app = {
     },
 
     initImportView() {
-        const today = new Date();
-        const mfg = new Date(today);
-        mfg.setDate(mfg.getDate() - 3);
-
-        const exp = new Date(today);
-        exp.setFullYear(exp.getFullYear() + 1);
-
-        document.getElementById('import-mfg-date').value = mfg.toISOString().split('T')[0];
-        document.getElementById('import-exp-date').value = exp.toISOString().split('T')[0];
-        this.generateRandomBatchCode();
+        if (!this.state.importSlipItems) {
+            this.state.importSlipItems = [];
+        }
+        this.renderImportItemsTable();
         this.calcImportTotal();
     },
 
@@ -1007,58 +1073,274 @@ const app = {
         this.state.selectedImportProduct = p;
         const dropdown = document.getElementById('import-product-dropdown');
         if (dropdown) dropdown.style.display = 'none';
-        document.getElementById('import-product-input').value = p.productName;
-        document.getElementById('import-product-name-disp').value = p.productName + ' (' + p.unit + ')';
-        this.generateRandomBatchCode(p.productName);
+        const input = document.getElementById('import-product-input');
+        if (input) input.value = '';
+
         document.getElementById('import-selected-product').innerHTML = `
             <div class="selected-customer-card" style="background: #eff6ff; border-color: #93c5fd; margin-top: 0.35rem;">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300'}" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px;">
                     <div>
-                        <strong style="color: #1e40af;"><i class="fa-solid fa-circle-check"></i> ${p.productName}</strong> (${p.unit})
-                        <div style="font-size: 0.78rem; color: #2563eb;">Nhóm: ${p.categoryName || '-'} | Giá bán: ${app.formatCurrency(p.sellingPrice)} đ</div>
+                        <strong style="color: #1e40af;"><i class="fa-solid fa-circle-check"></i> Đang chọn: ${p.productName}</strong> (${p.unit})
+                        <div style="font-size: 0.78rem; color: #2563eb;">Nhấn "+ Thêm lô thuốc" để thêm tiếp lô mới cho thuốc này</div>
                     </div>
                 </div>
-                <button type="button" class="btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" onclick="app.clearImportProduct()">✕ Đổi</button>
+                <button type="button" class="btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" onclick="app.clearImportProduct()">✕ Bỏ chọn</button>
             </div>
         `;
+
+        // Automatically add as a new batch in the excel-like list
+        this.addImportItem(p);
     },
 
     clearImportProduct() {
         this.state.selectedImportProduct = null;
-        document.getElementById('import-product-input').value = '';
-        document.getElementById('import-product-name-disp').value = '';
-        document.getElementById('import-selected-product').innerHTML = '';
-        document.getElementById('import-product-input').focus();
+        const input = document.getElementById('import-product-input');
+        if (input) input.value = '';
+        const disp = document.getElementById('import-selected-product');
+        if (disp) disp.innerHTML = '';
+        if (input) input.focus();
+    },
+
+    triggerAddBatchClick() {
+        if (this.state.selectedImportProduct) {
+            this.addImportItem(this.state.selectedImportProduct);
+        } else {
+            this.showCenterToast('🔍 Vui lòng tìm kiếm & chọn một thuốc ở mục 2 trước khi bấm Thêm lô!', 'blue', 2500);
+            const input = document.getElementById('import-product-input');
+            if (input) {
+                input.focus();
+                this.onImportProductSearchFocus();
+            }
+        }
+    },
+
+    addImportItem(p) {
+        if (!p) return;
+        const today = new Date();
+        const mfg = new Date(today);
+        mfg.setDate(mfg.getDate() - 3);
+
+        const exp = new Date(today);
+        exp.setFullYear(exp.getFullYear() + 1);
+
+        const mfgStr = mfg.toISOString().split('T')[0];
+        const expStr = exp.toISOString().split('T')[0];
+        const batchCode = this.generateRandomBatchCode(p.productName);
+
+        // Suggested purchase price from selling price or default
+        const suggestedPrice = (p.sellingPrice && p.sellingPrice > 0) ? Math.round(p.sellingPrice * 0.7) : 10000;
+
+        if (!this.state.importSlipItems) {
+            this.state.importSlipItems = [];
+        }
+
+        this.state.importSlipItems.push({
+            productId: p.productId,
+            productName: p.productName,
+            unit: p.unit || 'Đơn vị',
+            categoryName: p.categoryName || '',
+            batchCode: batchCode,
+            mfgDate: mfgStr,
+            expDate: expStr,
+            quantity: 100,
+            unitPrice: suggestedPrice
+        });
+
+        this.renderImportItemsTable();
+        this.calcImportTotal();
+        this.showCenterToast(`✅ Đã thêm lô vào bảng: ${p.productName}`, 'green', 1800);
+    },
+
+    renderImportItemsTable() {
+        const tbody = document.getElementById('import-items-tbody');
+        if (!tbody) return;
+
+        const items = this.state.importSlipItems || [];
+        if (items.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align: center; color: var(--gray-500); padding: 2.25rem 1rem;">
+                        <i class="fa-solid fa-boxes-stacked" style="font-size: 2rem; margin-bottom: 0.65rem; color: #94a3b8; display: block;"></i>
+                        <span style="font-weight: 600; font-size: 0.95rem; color: var(--gray-700);">Chưa có lô thuốc nào trong phiếu nhập.</span><br>
+                        <span style="font-size: 0.85rem; color: var(--gray-500);">Tìm kiếm và chọn thuốc ở ô trên, hoặc nhấn nút <strong>"+ Thêm lô thuốc"</strong> để tạo danh sách nhập hàng.</span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = items.map((item, idx) => {
+            const subTotal = (item.quantity || 0) * (item.unitPrice || 0);
+            return `
+                <tr style="border-bottom: 1px solid var(--gray-200); background: white;">
+                    <td style="text-align: center; font-weight: 700; color: var(--gray-500);">${idx + 1}</td>
+                    <td>
+                        <strong style="color: var(--primary-dark); font-size: 0.9rem;">${item.productName}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">ĐVT: <strong>${item.unit}</strong> ${item.categoryName ? '| ' + item.categoryName : ''}</div>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; font-family: monospace; font-weight: 600;" 
+                               value="${item.batchCode || ''}" 
+                               placeholder="VD: LOT-AUG-2026C"
+                               oninput="app.updateImportItemBatchCode(${idx}, this.value)" required>
+                    </td>
+                    <td>
+                        <input type="date" class="form-control" style="padding: 0.35rem 0.4rem; font-size: 0.82rem;" 
+                               value="${item.mfgDate || ''}" 
+                               onchange="app.updateImportItemMfgDate(${idx}, this.value)" required>
+                    </td>
+                    <td>
+                        <input type="date" class="form-control" style="padding: 0.35rem 0.4rem; font-size: 0.82rem;" 
+                               value="${item.expDate || ''}" 
+                               onchange="app.updateImportItemExpDate(${idx}, this.value)" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; text-align: right; width: 85px; font-weight: 600;" 
+                               min="1" value="${item.quantity}" 
+                               oninput="app.updateImportItemQuantity(${idx}, this.value)" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; text-align: right; width: 120px; font-weight: 600;" 
+                               min="0" step="500" value="${item.unitPrice}" 
+                               oninput="app.updateImportItemUnitPrice(${idx}, this.value)" required>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #15803d; font-size: 0.95rem; white-space: nowrap;" id="import-item-subtotal-${idx}">
+                        ${this.formatCurrency(subTotal)} đ
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 4px;" 
+                                title="Xóa lô này khỏi phiếu" onclick="app.removeImportItem(${idx})">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    updateImportItemBatchCode(idx, val) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            this.state.importSlipItems[idx].batchCode = val.trim();
+        }
+    },
+
+    updateImportItemMfgDate(idx, val) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            this.state.importSlipItems[idx].mfgDate = val;
+        }
+    },
+
+    updateImportItemExpDate(idx, val) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            this.state.importSlipItems[idx].expDate = val;
+        }
+    },
+
+    updateImportItemQuantity(idx, val) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            const qty = parseInt(val) || 0;
+            this.state.importSlipItems[idx].quantity = qty;
+            const subTotal = qty * (this.state.importSlipItems[idx].unitPrice || 0);
+            const cell = document.getElementById(`import-item-subtotal-${idx}`);
+            if (cell) cell.textContent = `${this.formatCurrency(subTotal)} đ`;
+            this.calcImportTotal();
+        }
+    },
+
+    updateImportItemUnitPrice(idx, val) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            const price = parseFloat(val) || 0;
+            this.state.importSlipItems[idx].unitPrice = price;
+            const subTotal = (this.state.importSlipItems[idx].quantity || 0) * price;
+            const cell = document.getElementById(`import-item-subtotal-${idx}`);
+            if (cell) cell.textContent = `${this.formatCurrency(subTotal)} đ`;
+            this.calcImportTotal();
+        }
+    },
+
+    removeImportItem(idx) {
+        if (this.state.importSlipItems && this.state.importSlipItems[idx]) {
+            const name = this.state.importSlipItems[idx].productName;
+            this.state.importSlipItems.splice(idx, 1);
+            this.renderImportItemsTable();
+            this.calcImportTotal();
+            this.showCenterToast(`Đã xóa lô của thuốc: ${name}`, 'red', 1500);
+        }
     },
 
     calcImportTotal() {
-        const qty = parseInt(document.getElementById('import-quantity').value) || 0;
-        const total = qty * 10000;
-        document.getElementById('import-calc-box').textContent = `Tổng tiền cần thanh toán: ${this.formatCurrency(total)} VNĐ`;
+        const items = this.state.importSlipItems || [];
+        const total = items.reduce((sum, it) => sum + ((it.quantity || 0) * (it.unitPrice || 0)), 0);
+        
+        const totalEl = document.getElementById('import-total-amount-display');
+        if (totalEl) {
+            totalEl.textContent = `${this.formatCurrency(total)} VNĐ`;
+        }
+        const countEl = document.getElementById('import-total-batches-count');
+        if (countEl) {
+            countEl.textContent = items.length;
+        }
     },
 
     async handleCreateImportSlip(e) {
         e.preventDefault();
 
+
         if (!this.state.selectedImportSupplier) {
             alert('Vui lòng chọn Nhà cung cấp!');
             return;
         }
-        if (!this.state.selectedImportProduct) {
-            alert('Vui lòng chọn Thuốc cần nhập!');
+
+        const warehouseSelect = document.getElementById('import-warehouse-select');
+        const warehouseId = warehouseSelect ? parseInt(warehouseSelect.value) : null;
+        if (!warehouseId) {
+            alert('Vui lòng chọn Kho nhập hàng!');
             return;
+        }
+
+        const items = this.state.importSlipItems || [];
+        if (items.length === 0) {
+            alert('Vui lòng thêm ít nhất một lô thuốc vào danh sách nhập!');
+            return;
+        }
+
+        // Validate each item
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (!it.batchCode || !it.batchCode.trim()) {
+                alert(`Dòng ${i + 1}: Vui lòng nhập số lô sản xuất cho thuốc ${it.productName}!`);
+                return;
+            }
+            if (!it.mfgDate || !it.expDate) {
+                alert(`Dòng ${i + 1}: Vui lòng chọn ngày sản xuất và hạn sử dụng cho lô ${it.batchCode}!`);
+                return;
+            }
+            if (new Date(it.expDate) <= new Date(it.mfgDate)) {
+                alert(`Dòng ${i + 1}: Hạn sử dụng (${it.expDate}) phải lớn hơn Ngày sản xuất (${it.mfgDate}) cho lô ${it.batchCode}!`);
+                return;
+            }
+            if (!it.quantity || it.quantity <= 0) {
+                alert(`Dòng ${i + 1}: Số lượng nhập của lô ${it.batchCode} phải lớn hơn 0!`);
+                return;
+            }
+            if (it.unitPrice === undefined || it.unitPrice === null || it.unitPrice < 0) {
+                alert(`Dòng ${i + 1}: Đơn giá nhập của lô ${it.batchCode} phải lớn hơn hoặc bằng 0!`);
+                return;
+            }
         }
 
         const payload = {
             supplierId: this.state.selectedImportSupplier.supplierId,
-            warehouseId: parseInt(document.getElementById('import-warehouse-select').value),
-            productId: this.state.selectedImportProduct.productId,
-            batchCode: document.getElementById('import-batch-code').value.trim(),
-            mfgDate: document.getElementById('import-mfg-date').value,
-            expDate: document.getElementById('import-exp-date').value,
-            quantity: parseInt(document.getElementById('import-quantity').value),
-            unitPrice: 10000.00
+            warehouseId: warehouseId,
+            items: items.map(it => ({
+                productId: it.productId,
+                batchCode: it.batchCode.trim(),
+                mfgDate: it.mfgDate,
+                expDate: it.expDate,
+                quantity: parseInt(it.quantity),
+                unitPrice: parseFloat(it.unitPrice)
+            }))
         };
 
         const btn = document.getElementById('btn-submit-import');
@@ -1072,15 +1354,22 @@ const app = {
             });
 
             if (res.success) {
-                this.showCenterToast('✅ Đã gửi yêu cầu xác nhận đến Chủ cửa hàng', 'green', 2000);
-                e.target.reset();
-                document.getElementById('import-selected-supplier').textContent = '';
-                document.getElementById('import-selected-product').textContent = '';
-                document.getElementById('import-supplier-input').value = '';
-                document.getElementById('import-product-input').value = '';
+                this.showCenterToast('✅ Đã lập phiếu nhập thành công (Trạng thái: Chờ Admin phê duyệt)', 'green', 2500);
+                this.state.importSlipItems = [];
                 this.state.selectedImportSupplier = null;
                 this.state.selectedImportProduct = null;
-                this.initImportView();
+                const selSup = document.getElementById('import-selected-supplier');
+                if (selSup) selSup.innerHTML = '';
+                const selProd = document.getElementById('import-selected-product');
+                if (selProd) selProd.innerHTML = '';
+                const supInp = document.getElementById('import-supplier-input');
+                if (supInp) supInp.value = '';
+                const prodInp = document.getElementById('import-product-input');
+                if (prodInp) prodInp.value = '';
+
+                this.renderImportItemsTable();
+                this.calcImportTotal();
+                this.loadImportSlipsList();
             } else {
                 if (res.message && res.message.includes('Số dư chủ cửa hàng không đủ')) {
                     this.showCenterToast('❌ Yêu cầu không thành công (Số dư chủ cửa hàng không đủ)', 'red', 2000);
@@ -1096,14 +1385,27 @@ const app = {
             }
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yêu cầu xác nhận';
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Lập phiếu nhập (Gửi Admin duyệt)';
         }
     },
     // ================= DISPOSAL SLIP VIEW =================
     initDisposalView() {
-        this.clearDisposalBatch(false);
-        const form = document.getElementById('form-disposal-slip');
-        if (form) form.reset();
+        if (!this.state.disposalSlipItems) {
+            this.state.disposalSlipItems = [];
+        }
+        this.renderDisposalItemsTable();
+        this.calcDisposalTotal();
+    },
+
+    onDisposalWarehouseChange(whId) {
+        this.state.disposalSlipItems = [];
+        this.renderDisposalItemsTable();
+        this.calcDisposalTotal();
+        const input = document.getElementById('disposal-batch-input');
+        if (input) input.value = '';
+        const card = document.getElementById('disposal-selected-batch-card');
+        if (card) card.innerHTML = '';
+        this.showCenterToast('Đã đổi kho xuất hủy. Danh sách lô đã được làm mới.', 'blue', 1800);
     },
 
     onDisposalBatchSearchFocus() {
@@ -1132,11 +1434,11 @@ const app = {
         if (!dropdown) return;
 
         try {
-            const role = this.state.user ? this.state.user.position : '';
-        const whId = (role === 'ROLE_WAREHOUSE' && this.state.user && this.state.user.warehouseId) 
-            ? this.state.user.warehouseId 
-            : (this.state.activeWarehouseId || '');
-        const res = await this.apiFetch(`/api/v1/batches/search-disposal?keyword=${encodeURIComponent(q.trim())}&warehouseId=${whId}`);
+            const selectDis = document.getElementById('disposal-warehouse-select');
+            const whId = (selectDis && selectDis.value) 
+                ? selectDis.value 
+                : (this.state.user?.warehouseId || this.state.activeWarehouseId || '');
+            const res = await this.apiFetch(`/api/v1/batches/search-disposal?keyword=${encodeURIComponent(q.trim())}&warehouseId=${whId}`);
             if (res.success && res.data && res.data.length > 0) {
                 dropdown.innerHTML = `
                     <div style="padding: 0.4rem 0.75rem; background: var(--gray-100); font-size: 0.75rem; font-weight: 700; color: var(--gray-600); border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
@@ -1189,28 +1491,12 @@ const app = {
         const dropdown = document.getElementById('disposal-batch-dropdown');
         if (dropdown) dropdown.style.display = 'none';
 
-        const prodTitle = b.productName ? `${b.productName} (#${b.productId})` : `Thuốc #${b.productId}`;
-        const unitStr = b.unit ? ` ${b.unit}` : '';
-
         const input = document.getElementById('disposal-batch-input');
-        if (input) input.value = `${b.batchCode} - ${prodTitle}`;
+        if (input) input.value = '';
 
-        const bCode = document.getElementById('disposal-batch-code-disp');
-        if (bCode) bCode.value = b.batchCode;
-
-        const pName = document.getElementById('disposal-product-name-disp');
-        if (pName) pName.value = b.productName ? `${b.productName} (${b.unit || 'Đơn vị'})` : `Thuốc #${b.productId}`;
-
-        const wName = document.getElementById('disposal-warehouse-name-disp');
-        if (wName) wName.value = b.warehouseName || '';
-
-        const stock = document.getElementById('disposal-stock-disp');
-        if (stock) stock.value = `${b.quantity}${unitStr}`;
-
-        const qtyInput = document.getElementById('disposal-quantity');
-        if (qtyInput) {
-            qtyInput.max = b.quantity;
-            qtyInput.value = b.quantity;
+        const selectDis = document.getElementById('disposal-warehouse-select');
+        if (selectDis && b.warehouseId) {
+            selectDis.value = b.warehouseId;
         }
 
         const card = document.getElementById('disposal-selected-batch-card');
@@ -1227,62 +1513,242 @@ const app = {
             card.innerHTML = `
                 <div class="selected-customer-card" style="background: #fff7ed; border: 1px solid #fdba74; margin-top: 0.4rem; padding: 0.6rem 0.8rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong style="color: #9a3412;"><i class="fa-solid fa-circle-check"></i> Đã chọn lô: ${b.batchCode} - ${prodTitle}</strong>
-                        <div style="font-size: 0.78rem; color: #c2410c; margin-top: 2px;">
-                            Kho: <strong>${b.warehouseName}</strong> | Tồn: <strong style="color: var(--danger);">${b.quantity}${unitStr}</strong> | HSD: <strong>${b.expDate}</strong>
-                            <span style="padding: 1px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; font-weight: 600; margin-left: 6px;">${b.status}</span>
+                        <strong style="color: #9a3412;"><i class="fa-solid fa-box-archive"></i> Đang chọn: Lô ${b.batchCode}</strong> - ${b.productName}
+                        <div style="font-size: 0.78rem; color: #b45309; margin-top: 2px;">
+                            Kho: <strong>${b.warehouseName || ''}</strong> | Tồn: <strong>${b.quantity} ${b.unit || ''}</strong> | HSD: <strong>${b.expDate}</strong>
                         </div>
                     </div>
-                    <button type="button" class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="app.clearDisposalBatch()">✕ Đổi</button>
+                    <button type="button" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="app.clearDisposalBatch()">✕ Bỏ chọn</button>
                 </div>
             `;
         }
+
+        // Add to items list
+        this.addDisposalItem(b);
     },
 
     clearDisposalBatch(focus = true) {
         this.state.selectedDisposalBatch = null;
         const input = document.getElementById('disposal-batch-input');
-        if (input) {
-            input.value = '';
-            if (focus) input.focus();
-        }
-        const bCode = document.getElementById('disposal-batch-code-disp');
-        if (bCode) bCode.value = '';
-        const pName = document.getElementById('disposal-product-name-disp');
-        if (pName) pName.value = '';
-        const wName = document.getElementById('disposal-warehouse-name-disp');
-        if (wName) wName.value = '';
-        const stock = document.getElementById('disposal-stock-disp');
-        if (stock) stock.value = '0';
-        const qtyInput = document.getElementById('disposal-quantity');
-        if (qtyInput) qtyInput.value = '';
+        if (input) input.value = '';
         const card = document.getElementById('disposal-selected-batch-card');
         if (card) card.innerHTML = '';
-        if (focus) this.onDisposalBatchSearchFocus();
+        if (focus && input) input.focus();
+    },
+
+    triggerAddDisposalBatchClick() {
+        if (this.state.selectedDisposalBatch) {
+            this.addDisposalItem(this.state.selectedDisposalBatch);
+        } else {
+            this.showCenterToast('🔍 Vui lòng tìm kiếm & chọn một lô hàng ở mục 1 trước khi bấm Thêm!', 'blue', 2500);
+            const input = document.getElementById('disposal-batch-input');
+            if (input) {
+                input.focus();
+                this.onDisposalBatchSearchFocus();
+            }
+        }
+    },
+
+    addDisposalItem(b, reRender = true) {
+        if (!b) return;
+
+        if (!this.state.disposalSlipItems) {
+            this.state.disposalSlipItems = [];
+        }
+
+        const selectDis = document.getElementById('disposal-warehouse-select');
+        const selectedWhId = selectDis ? parseInt(selectDis.value) : null;
+        if (selectedWhId && b.warehouseId && selectedWhId !== b.warehouseId) {
+            this.showCenterToast(`⚠️ Lô này thuộc ${b.warehouseName || 'kho khác'}. Vui lòng chọn cùng kho xuất hủy!`, 'red', 2500);
+            return;
+        }
+
+        const existingIdx = this.state.disposalSlipItems.findIndex(it => it.batchId === b.batchId);
+        if (existingIdx !== -1) {
+            if (reRender) this.showCenterToast(`💡 Lô ${b.batchCode} đã có trong danh sách hủy!`, 'blue', 2000);
+            return;
+        }
+
+        let defaultReason = 'Hết hạn sử dụng';
+        if (b.status === 'Gần hết hạn') defaultReason = 'Cận date, thu hồi tiêu hủy';
+        else if (b.status === 'Còn hạn') defaultReason = 'Hư hỏng bao bì / biến chất';
+
+        this.state.disposalSlipItems.push({
+            batchId: b.batchId,
+            batchCode: b.batchCode,
+            productId: b.productId,
+            productName: b.productName || `Thuốc #${b.productId}`,
+            unit: b.unit || 'Đơn vị',
+            warehouseId: b.warehouseId,
+            warehouseName: b.warehouseName || '',
+            expDate: b.expDate,
+            status: b.status,
+            currentStock: b.quantity,
+            quantity: b.quantity,
+            reason: defaultReason
+        });
+
+        if (reRender) {
+            this.renderDisposalItemsTable();
+            this.calcDisposalTotal();
+            this.showCenterToast(`✅ Đã thêm lô vào danh sách hủy: ${b.batchCode}`, 'green', 1800);
+        }
+    },
+
+    renderDisposalItemsTable() {
+        const tbody = document.getElementById('disposal-items-tbody');
+        if (!tbody) return;
+
+        const items = this.state.disposalSlipItems || [];
+        if (items.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--gray-500); padding: 2.25rem 1rem;">
+                        <i class="fa-solid fa-boxes-stacked" style="font-size: 2rem; margin-bottom: 0.65rem; color: #fdba74; display: block;"></i>
+                        <span style="font-weight: 600; font-size: 0.95rem; color: var(--gray-700);">Chưa có lô thuốc nào trong phiếu hủy.</span><br>
+                        <span style="font-size: 0.85rem; color: var(--gray-500);">Tìm kiếm và chọn lô hàng ở ô trên để thêm vào danh sách tiêu hủy.</span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = items.map((item, idx) => {
+            let badgeBg = '#fee2e2';
+            let badgeColor = '#dc2626';
+            if (item.status === 'Gần hết hạn') {
+                badgeBg = '#fef3c7';
+                badgeColor = '#d97706';
+            } else if (item.status === 'Còn hạn') {
+                badgeBg = '#dcfce7';
+                badgeColor = '#16a34a';
+            }
+
+            return `
+                <tr style="border-bottom: 1px solid var(--gray-200); background: white;">
+                    <td style="text-align: center; font-weight: 700; color: var(--gray-500);">${idx + 1}</td>
+                    <td>
+                        <strong style="color: #1e293b; font-size: 0.9rem;">${item.productName}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">ĐVT: <strong>${item.unit}</strong> | Kho: ${item.warehouseName || ''}</div>
+                    </td>
+                    <td>
+                        <span style="font-family: monospace; font-weight: 700; color: #b45309;">${item.batchCode}</span>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.82rem; font-weight: 600;">${item.expDate}</div>
+                        <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 9999px; background: ${badgeBg}; color: ${badgeColor};">
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #dc2626;">
+                        ${item.currentStock} ${item.unit}
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; text-align: right; width: 95px; font-weight: 700;" 
+                               min="1" max="${item.currentStock}" value="${item.quantity}" 
+                               oninput="app.updateDisposalItemQuantity(${idx}, this.value)" required>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.85rem;" 
+                               value="${item.reason || ''}" 
+                               placeholder="Lý do hủy (bắt buộc)..."
+                               oninput="app.updateDisposalItemReason(${idx}, this.value)" required>
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 4px;" 
+                                title="Xóa lô này khỏi phiếu hủy" onclick="app.removeDisposalItem(${idx})">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    updateDisposalItemQuantity(idx, val) {
+        if (this.state.disposalSlipItems && this.state.disposalSlipItems[idx]) {
+            const it = this.state.disposalSlipItems[idx];
+            let qty = parseInt(val) || 0;
+            if (qty > it.currentStock) {
+                this.showCenterToast(`⚠️ Số lượng hủy (${qty}) vượt quá tồn kho (${it.currentStock})!`, 'red', 2000);
+            }
+            it.quantity = qty;
+            this.calcDisposalTotal();
+        }
+    },
+
+    updateDisposalItemReason(idx, val) {
+        if (this.state.disposalSlipItems && this.state.disposalSlipItems[idx]) {
+            this.state.disposalSlipItems[idx].reason = val;
+        }
+    },
+
+    removeDisposalItem(idx) {
+        if (this.state.disposalSlipItems && this.state.disposalSlipItems[idx]) {
+            const code = this.state.disposalSlipItems[idx].batchCode;
+            this.state.disposalSlipItems.splice(idx, 1);
+            this.renderDisposalItemsTable();
+            this.calcDisposalTotal();
+            this.showCenterToast(`Đã xóa lô ${code} khỏi danh sách hủy`, 'red', 1500);
+        }
+    },
+
+    calcDisposalTotal() {
+        const items = this.state.disposalSlipItems || [];
+        const totalQty = items.reduce((sum, it) => sum + (parseInt(it.quantity) || 0), 0);
+
+        const countEl = document.getElementById('disposal-total-batches-count');
+        if (countEl) countEl.textContent = items.length;
+
+        const qtyEl = document.getElementById('disposal-total-qty-display');
+        if (qtyEl) qtyEl.textContent = totalQty;
     },
 
     async handleCreateDisposalSlip(e) {
         e.preventDefault();
-        if (!this.state.selectedDisposalBatch) {
-            alert('Vui lòng chọn Lô hàng cần hủy!');
+
+
+        const selectWh = document.getElementById('disposal-warehouse-select');
+        const warehouseId = selectWh ? parseInt(selectWh.value) : null;
+        if (!warehouseId) {
+            alert('Vui lòng chọn Kho xuất hủy!');
             return;
         }
 
-        const b = this.state.selectedDisposalBatch;
-        const qty = parseInt(document.getElementById('disposal-quantity').value);
-        const reason = document.getElementById('disposal-reason').value.trim();
-
-        if (qty > b.quantity) {
-            alert(`Số lượng hủy (${qty}) không được vượt quá số lượng tồn (${b.quantity})!`);
+        const items = this.state.disposalSlipItems || [];
+        if (items.length === 0) {
+            alert('Vui lòng thêm ít nhất một lô hàng vào danh sách hủy!');
             return;
+        }
+
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (!it.quantity || it.quantity <= 0) {
+                alert(`Dòng ${i + 1} (Lô ${it.batchCode}): Số lượng hủy phải lớn hơn 0!`);
+                return;
+            }
+            if (it.quantity > it.currentStock) {
+                alert(`Dòng ${i + 1} (Lô ${it.batchCode}): Số lượng hủy (${it.quantity}) vượt quá tồn kho (${it.currentStock})!`);
+                return;
+            }
+            if (!it.reason || !it.reason.trim()) {
+                alert(`Dòng ${i + 1} (Lô ${it.batchCode}): Vui lòng nhập lý do hủy thuốc!`);
+                return;
+            }
         }
 
         const payload = {
-            warehouseId: b.warehouseId,
-            batchId: b.batchId,
-            quantity: qty,
-            reason: reason
+            warehouseId: warehouseId,
+            items: items.map(it => ({
+                batchId: it.batchId,
+                quantity: parseInt(it.quantity),
+                reason: it.reason.trim()
+            }))
         };
+
+        const btn = document.getElementById('btn-submit-disposal');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
 
         try {
             const res = await this.apiFetch('/api/v1/disposal-slips', {
@@ -1291,17 +1757,28 @@ const app = {
             });
 
             if (res.success) {
-                this.showCenterToast('✅ Đã tạo phiếu hủy hàng thành công', 'green', 2000);
-                this.clearDisposalBatch(false);
-                this.initDisposalView();
-                if (this.state.user && this.state.user.position !== 'ROLE_WAREHOUSE') {
-                    this.loadPosProducts();
+                this.showCenterToast('✅ Đã lập phiếu hủy thành công (Trạng thái: Chờ Admin phê duyệt)', 'green', 2500);
+                this.state.disposalSlipItems = [];
+                this.state.selectedDisposalBatch = null;
+                const batchInp = document.getElementById('disposal-batch-input');
+                if (batchInp) batchInp.value = '';
+                const card = document.getElementById('disposal-selected-batch-card');
+                if (card) card.innerHTML = '';
+
+                this.renderDisposalItemsTable();
+                this.calcDisposalTotal();
+                this.loadDisposalSlipsList();
+                if (document.getElementById('view-reports')?.classList.contains('active')) {
+                    this.loadReportDashboard();
                 }
             } else {
-                alert('Lỗi xác nhận hủy hàng: ' + res.message);
+                alert('Lỗi tạo phiếu hủy: ' + res.message);
             }
         } catch (err) {
-            alert('Lỗi xác nhận hủy hàng: ' + err.message);
+            alert('Lỗi tạo phiếu hủy: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lập phiếu hủy (Gửi Admin duyệt)';
         }
     },
 
@@ -1336,12 +1813,17 @@ const app = {
                 tbody.innerHTML = res.data.map(inv => {
                     let badge = '<span class="status-badge status-unpaid">Chưa thanh toán</span>';
                     if (inv.status === 'PAID') badge = '<span class="status-badge status-paid">Đã thanh toán</span>';
-                    else if (inv.status === 'CANCELLED') badge = '<span class="status-badge status-cancelled">Đã hủy</span>';
+                    else if (inv.status === 'CANCELLED') badge = '<span class="status-badge status-cancelled"><i class="fa-solid fa-ban"></i> Đã hủy</span>';
 
-                    let actions = `<button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.openK80Modal(${JSON.stringify(inv).replace(/"/g, '&quot;')})"><i class="fa-solid fa-print"></i> K80</button>`;
-                    if (inv.status === 'UNPAID') {
-                        actions += ` <button class="btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.confirmPaymentById(${inv.invoiceId})">Thanh toán</button>`;
-                        actions += ` <button class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.cancelInvoiceById(${inv.invoiceId})">Hủy</button>`;
+                    let actions = '';
+                    if (inv.status === 'CANCELLED') {
+                        actions = '<button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; opacity: 0.5; cursor: not-allowed;" disabled title="Hóa đơn đã hủy, không thể in"><i class="fa-solid fa-ban"></i> Không thể in</button>';
+                    } else {
+                        actions = `<button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.openK80Modal(${JSON.stringify(inv).replace(/"/g, '&quot;')})"><i class="fa-solid fa-print"></i> In HĐ</button>`;
+                        if (inv.status === 'UNPAID') {
+                            actions += ` <button class="btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.confirmPaymentById(${inv.invoiceId})">Thanh toán</button>`;
+                            actions += ` <button class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.cancelInvoiceById(${inv.invoiceId})">Hủy</button>`;
+                        }
                     }
 
                     return `
@@ -1441,63 +1923,59 @@ const app = {
                 const tbody = document.getElementById('report-invoices-body');
                 const a4body = document.getElementById('a4-invoices-body');
 
-                tbody.innerHTML = resInv.data.map(inv => `
+                tbody.innerHTML = resInv.data.map(inv => {
+                    let badge = '<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Đã thanh toán</span>';
+                    if (inv.status === 'CANCELLED') {
+                        badge = '<span class="status-badge status-cancelled"><i class="fa-solid fa-ban"></i> Đã hủy</span>';
+                    } else if (inv.status === 'UNPAID') {
+                        badge = '<span class="status-badge status-unpaid"><i class="fa-solid fa-clock"></i> Chưa thanh toán</span>';
+                    }
+
+                    return `
                     <tr>
                         <td><strong>${inv.invoiceCode}</strong></td>
                         <td>${inv.customerName}</td>
                         <td>${inv.salesStaffName}</td>
                         <td>${app.formatDateTime(inv.createdAt)}</td>
                         <td style="text-align: right; font-weight: bold;">${app.formatCurrency(inv.totalAmount)} đ</td>
-                        <td style="text-align: center;"><span class="status-badge status-paid">${inv.status}</span></td>
+                        <td style="text-align: center;">${badge}</td>
                         <td style="text-align: center;">
-                            <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.openK80Modal(${JSON.stringify(inv).replace(/"/g, '&quot;')})">K80</button>
+                            ${inv.status === 'CANCELLED' 
+                                ? '<button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; opacity: 0.5; cursor: not-allowed;" disabled title="Hóa đơn đã hủy, không thể in"><i class="fa-solid fa-ban"></i> Không thể in</button>'
+                                : `<button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.openK80Modal(${JSON.stringify(inv).replace(/"/g, '&quot;')})"><i class="fa-solid fa-print"></i> In HĐ</button>`}
                         </td>
                     </tr>
-                `).join('');
-
-                a4body.innerHTML = resInv.data.map(inv => `
-                    <tr>
-                        <td style="text-align: center;">${inv.invoiceCode}</td>
-                        <td>${inv.customerName}</td>
-                        <td>${inv.salesStaffName}</td>
-                        <td style="text-align: center;">${app.formatDateTime(inv.createdAt)}</td>
-                        <td style="text-align: right;">${app.formatCurrency(inv.totalAmount)} đ</td>
-                        <td style="text-align: center;">${inv.status}</td>
-                    </tr>
-                `).join('');
-            }
-
-            // Load Imports Table in period
-            const resImp = await this.apiFetch('/api/v1/import-slips');
-            if (resImp.success && resImp.data) {
-                const tbody = document.getElementById('report-imports-body');
-                tbody.innerHTML = resImp.data.map(imp => {
-                    let badge = '<span class="status-badge status-unpaid">Chờ duyệt</span>';
-                    if (imp.status === 'IMPORTED') badge = '<span class="status-badge status-paid">Đã nhập</span>';
-                    else if (imp.status === 'CANCELLED') badge = '<span class="status-badge status-cancelled">Đã hủy</span>';
-
-                    let actions = '-';
-                    if (imp.status === 'PENDING') {
-                        actions = `
-                            <button class="btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.approveImportSlip(${imp.importSlipId})">Duyệt</button>
-                            <button class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.rejectImportSlip(${imp.importSlipId})">Hủy</button>
-                        `;
-                    }
-
-                    return `
-                        <tr>
-                            <td><strong>PN${String(imp.importSlipId).padStart(5, '0')}</strong></td>
-                            <td>${imp.supplierName}</td>
-                            <td>${imp.warehouseStaffName}</td>
-                            <td>${imp.warehouseName}</td>
-                            <td>${app.formatDateTime(imp.importDate)}</td>
-                            <td style="text-align: right; font-weight: bold;">${app.formatCurrency(imp.totalAmount)} đ</td>
-                            <td style="text-align: center;">${badge}</td>
-                            <td style="text-align: center;">${actions}</td>
-                        </tr>
                     `;
                 }).join('');
+
+                // Chỉ in các hóa đơn có trạng thái ĐÃ HOÀN THÀNH (PAID) vào báo cáo
+                const completedInvoices = resInv.data.filter(inv => inv.status === 'PAID');
+                if (completedInvoices.length === 0) {
+                    a4body.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 1.5rem;">Không có hóa đơn hoàn thành nào trong kỳ này.</td></tr>';
+                } else {
+                    const totalCompleted = completedInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+                    a4body.innerHTML = completedInvoices.map(inv => `
+                    <tr>
+                        <td style="text-align: center;"><strong>${inv.invoiceCode}</strong></td>
+                        <td>${inv.customerName || 'Khách vãng lai'}</td>
+                        <td>${inv.salesStaffName || '-'}</td>
+                        <td style="text-align: center;">${app.formatDateTime(inv.createdAt)}</td>
+                        <td style="text-align: right; font-weight: 600;">${app.formatCurrency(inv.totalAmount)} đ</td>
+                        <td style="text-align: center; color: #15803d; font-weight: 600;">Đã hoàn thành</td>
+                    </tr>
+                    `).join('') + `
+                    <tr style="background: #f8fafc; font-weight: bold; border-top: 2px solid #cbd5e1;">
+                        <td colspan="4" style="text-align: right;">TỔNG DOANH THU HOÀN THÀNH (${completedInvoices.length} HÓA ĐƠN):</td>
+                        <td style="text-align: right; color: #15803d; font-size: 1rem;">${app.formatCurrency(totalCompleted)} đ</td>
+                        <td style="text-align: center; color: #15803d;">HOÀN TẤT</td>
+                    </tr>
+                    `;
+                }
             }
+
+            // Load Imports & Disposals Tables in period
+            this.loadImportSlipsList();
+            this.loadDisposalSlipsList();
 
             // Load Inventory Stock Table
             const resStock = await this.apiFetch('/api/v1/reports/inventory');
@@ -1531,52 +2009,415 @@ const app = {
 
     switchReportTab(tabName) {
         this.state.activeReportTab = tabName;
-        document.querySelectorAll('#rep-tab-invoices, #rep-tab-imports, #rep-tab-stock').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('#tab-btn-rep-inv, #tab-btn-rep-imp, #tab-btn-rep-stock').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('#rep-tab-invoices, #rep-tab-imports, #rep-tab-disposals, #rep-tab-stock').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('#tab-btn-rep-inv, #tab-btn-rep-imp, #tab-btn-rep-disp, #tab-btn-rep-stock').forEach(el => el.classList.remove('active'));
 
-        document.getElementById('rep-tab-' + tabName).style.display = 'block';
-        if (tabName === 'invoices') document.getElementById('tab-btn-rep-inv').classList.add('active');
-        if (tabName === 'imports') document.getElementById('tab-btn-rep-imp').classList.add('active');
-        if (tabName === 'stock') document.getElementById('tab-btn-rep-stock').classList.add('active');
+        const target = document.getElementById('rep-tab-' + tabName);
+        if (target) target.style.display = 'block';
+
+        if (tabName === 'invoices') document.getElementById('tab-btn-rep-inv')?.classList.add('active');
+        if (tabName === 'imports') {
+            document.getElementById('tab-btn-rep-imp')?.classList.add('active');
+            this.loadImportSlipsList();
+        }
+        if (tabName === 'disposals') {
+            document.getElementById('tab-btn-rep-disp')?.classList.add('active');
+            this.loadDisposalSlipsList();
+        }
+        if (tabName === 'stock') document.getElementById('tab-btn-rep-stock')?.classList.add('active');
     },
 
-    async approveImportSlip(id) {
-        if (!confirm('Bạn có chắc muốn phê duyệt phiếu nhập này? (Hàng hóa sẽ được nhập và cộng vào tồn kho).')) return;
+    async loadImportSlipsList() {
+        const tbody1 = document.getElementById('import-slips-list-tbody');
+        const tbody2 = document.getElementById('report-imports-body');
+        if (!tbody1 && !tbody2) return;
+
+        try {
+            const res = await this.apiFetch('/api/v1/import-slips');
+            if (res.success && res.data) {
+                const isAdmin = this.state.user && this.state.user.position === 'ROLE_ADMIN';
+                const rowsHtml = res.data.length === 0
+                    ? '<tr><td colspan="10" style="text-align: center; color: var(--gray-500); padding: 1.5rem;">Chưa có phiếu nhập hàng nào.</td></tr>'
+                    : res.data.map(imp => {
+                        let badge = '<span class="status-badge status-unpaid"><i class="fa-solid fa-clock"></i> Chờ xác nhận</span>';
+                        if (imp.status === 'IMPORTED') badge = '<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Đã nhập</span>';
+                        else if (imp.status === 'CANCELLED') badge = '<span class="status-badge status-cancelled"><i class="fa-solid fa-ban"></i> Đã hủy</span>';
+
+                        let itemDesc = '-';
+                        let itemQty = '-';
+                        let prodLabel = '';
+                        if (imp.items && imp.items.length > 0) {
+                            if (imp.items.length === 1) {
+                                const it = imp.items[0];
+                                itemDesc = `<strong>${it.productName}</strong><br><small style="color: var(--gray-600);">Lô: ${it.batchCode || '-'}</small>`;
+                                itemQty = `<span style="font-weight: 700; color: #0284c7;">${it.quantity}</span> ${it.unit || ''}`;
+                                prodLabel = `${it.productName} (${it.quantity} ${it.unit || ''})`;
+                            } else {
+                                itemDesc = `<strong>${imp.items.length} lô thuốc:</strong><div style="font-size: 0.76rem; color: var(--gray-600); margin-top: 2px; line-height: 1.3;">` +
+                                    imp.items.slice(0, 3).map(it => `• ${it.productName} (${it.batchCode})`).join('<br>') +
+                                    (imp.items.length > 3 ? `<br><em>...và ${imp.items.length - 3} lô khác</em>` : '') +
+                                    `</div>`;
+                                const totalQty = imp.items.reduce((s, it) => s + it.quantity, 0);
+                                itemQty = `<span style="font-weight: 700; color: #0284c7;">${totalQty}</span> <small style="color: var(--gray-500);">(Tổng)</small>`;
+                                prodLabel = `${imp.items.length} lô hàng (Tổng ${totalQty} sp)`;
+                            }
+                        }
+                        const escapedLabel = prodLabel.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+
+                        let actions = '<span style="color: var(--gray-400); font-size: 0.82rem;">-</span>';
+                        if (isAdmin && imp.status === 'PENDING') {
+                            actions = `
+                                <div style="display: flex; gap: 0.35rem; justify-content: center;">
+                                    <button class="btn-success" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; white-space: nowrap;" onclick="app.approveImportSlip(${imp.importSlipId}, '${escapedLabel}')"><i class="fa-solid fa-check"></i> Xác nhận (Duyệt)</button>
+                                    <button class="btn-danger" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; white-space: nowrap;" onclick="app.rejectImportSlip(${imp.importSlipId}, '${escapedLabel}')"><i class="fa-solid fa-xmark"></i> Từ chối</button>
+                                </div>
+                            `;
+                        } else if (imp.status === 'IMPORTED') {
+                            actions = '<span style="color: #15803d; font-size: 0.82rem; font-weight: 600;"><i class="fa-solid fa-check"></i> Đã duyệt</span>';
+                        } else if (imp.status === 'CANCELLED') {
+                            actions = '<span style="color: #b91c1c; font-size: 0.82rem; font-weight: 600;"><i class="fa-solid fa-ban"></i> Đã từ chối</span>';
+                        }
+
+                        return `
+                            <tr>
+                                <td><strong>#PN${String(imp.importSlipId).padStart(4, '0')}</strong></td>
+                                <td>${imp.supplierName || '-'}</td>
+                                <td>${imp.warehouseStaffName || '-'}</td>
+                                <td>${imp.warehouseName || '-'}</td>
+                                <td>${itemDesc}</td>
+                                <td style="text-align: right;">${itemQty}</td>
+                                <td style="text-align: right; font-weight: 700; color: var(--primary);">${this.formatCurrency(imp.totalAmount)} đ</td>
+                                <td>${this.formatDateTime(imp.importDate)}</td>
+                                <td style="text-align: center;">${badge}</td>
+                                <td style="text-align: center;">${actions}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                if (tbody1) tbody1.innerHTML = rowsHtml;
+                if (tbody2) tbody2.innerHTML = rowsHtml;
+            }
+        } catch (e) {
+            console.error('Error loading import slips:', e);
+            if (tbody1) tbody1.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--danger);">Lỗi: ' + e.message + '</td></tr>';
+            if (tbody2) tbody2.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--danger);">Lỗi: ' + e.message + '</td></tr>';
+        }
+    },
+
+    async approveImportSlip(id, prodLabel = '') {
+        const detailInfo = prodLabel ? ` [${prodLabel}]` : '';
+        if (!confirm(`Bạn có chắc muốn PHÊ DUYỆT phiếu nhập #${id}${detailInfo}? (Hàng hóa sẽ được nhập và cộng vào tồn kho).`)) return;
         try {
             const res = await this.apiFetch(`/api/v1/import-slips/${id}/confirm`, { method: 'POST' });
             if (res.success) {
-                alert('Phê duyệt thành công!');
-                this.loadReportDashboard();
-                this.refreshAdminBalance();
+                this.showCenterToast('✅ Đã phê duyệt phiếu nhập thành công (Đã cộng kho)', 'green', 2500);
+                this.loadImportSlipsList();
+                if (document.getElementById('view-reports')?.classList.contains('active')) {
+                    this.loadReportDashboard();
+                }
             } else {
-                alert('Lỗi phê duyệt: ' + res.message);
+                alert('Lỗi phê duyệt phiếu nhập: ' + res.message);
             }
         } catch (e) {
             alert('Lỗi phê duyệt: ' + e.message);
         }
     },
 
-    async rejectImportSlip(id) {
-        if (!confirm('Từ chối / Hủy phiếu nhập này?')) return;
+    async rejectImportSlip(id, prodLabel = '') {
+        const detailInfo = prodLabel ? ` [${prodLabel}]` : '';
+        if (!confirm(`Từ chối / Hủy phiếu nhập #${id}${detailInfo}?`)) return;
         try {
             const res = await this.apiFetch(`/api/v1/import-slips/${id}/cancel`, { method: 'POST' });
             if (res.success) {
-                alert('Đã hủy phiếu nhập!');
-                this.loadReportDashboard();
+                this.showCenterToast('✅ Đã từ chối phiếu nhập #' + id, 'green', 2000);
+                this.loadImportSlipsList();
+                if (document.getElementById('view-reports')?.classList.contains('active')) {
+                    this.loadReportDashboard();
+                }
+            } else {
+                alert('Lỗi từ chối phiếu nhập: ' + res.message);
+            }
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+        }
+    },
+
+    // ================= MODAL: SELECT MULTIPLE DISPOSAL BATCHES =================
+    async openSelectDisposalBatchesModal() {
+        const selectDis = document.getElementById('disposal-warehouse-select');
+        const whId = (selectDis && selectDis.value) 
+            ? selectDis.value 
+            : (this.state.user?.warehouseId || this.state.activeWarehouseId || '1');
+
+        const whNameEl = document.getElementById('modal-disposal-warehouse-name');
+        if (whNameEl && selectDis && selectDis.options && selectDis.selectedIndex >= 0) {
+            whNameEl.textContent = selectDis.options[selectDis.selectedIndex].text;
+        }
+
+        const tbody = document.getElementById('modal-disposal-batches-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách tồn kho...</td></tr>';
+        }
+
+        this.openModal('modal-select-disposal-batches');
+        const filterInput = document.getElementById('modal-disposal-search-filter');
+        if (filterInput) filterInput.value = '';
+
+        try {
+            const res = await this.apiFetch(`/api/v1/batches/search-disposal?keyword=&warehouseId=${whId}`);
+            if (res.success && res.data) {
+                this.state.modalDisposalBatchesCache = res.data;
+                this.renderDisposalBatchesModalTable(res.data);
+            } else {
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 1.5rem;">Kho hiện không có lô hàng nào khả dụng.</td></tr>';
+            }
+        } catch (e) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem;">Lỗi tải dữ liệu: ' + e.message + '</td></tr>';
+        }
+    },
+
+    renderDisposalBatchesModalTable(batches) {
+        const tbody = document.getElementById('modal-disposal-batches-tbody');
+        if (!tbody) return;
+
+        if (!batches || batches.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 1.5rem;">Không tìm thấy lô hàng nào phù hợp trong kho.</td></tr>';
+            this.updateDisposalModalSelectedCount();
+            return;
+        }
+
+        const existingBatchIds = new Set((this.state.disposalSlipItems || []).map(it => it.batchId));
+
+        tbody.innerHTML = batches.map(b => {
+            const isAlreadyAdded = existingBatchIds.has(b.batchId);
+            let badgeBg = '#fee2e2';
+            let badgeColor = '#dc2626';
+            if (b.status === 'Gần hết hạn') {
+                badgeBg = '#fef3c7';
+                badgeColor = '#d97706';
+            } else if (b.status === 'Còn hạn') {
+                badgeBg = '#dcfce7';
+                badgeColor = '#16a34a';
+            }
+
+            return `
+                <tr style="background: ${isAlreadyAdded ? '#f8fafc' : 'white'};">
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="modal-disp-item-checkbox" 
+                               value="${b.batchId}" 
+                               data-batch='${JSON.stringify(b).replace(/'/g, "&#39;")}'
+                               ${isAlreadyAdded ? 'checked disabled' : ''} 
+                               onchange="app.updateDisposalModalSelectedCount()">
+                    </td>
+                    <td>
+                        <strong style="color: #1e293b; font-size: 0.9rem;">${b.productName}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">ĐVT: <strong>${b.unit || 'Đơn vị'}</strong></div>
+                    </td>
+                    <td>
+                        <span style="font-family: monospace; font-weight: 700; color: #b45309;">${b.batchCode}</span>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.85rem; font-weight: 600;">${b.expDate}</div>
+                        <div style="font-size: 0.72rem; color: var(--gray-500);">NSX: ${b.mfgDate}</div>
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap;">
+                            ${b.status}
+                        </span>
+                        ${isAlreadyAdded ? '<br><small style="color: #2563eb; font-weight: 600;">(Đã có trong bảng)</small>' : ''}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #dc2626; font-size: 0.92rem;">
+                        ${b.quantity} ${b.unit || ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        this.updateDisposalModalSelectedCount();
+    },
+
+    filterDisposalBatchesModal(q = '') {
+        const batches = this.state.modalDisposalBatchesCache || [];
+        const term = q.trim().toLowerCase();
+        if (!term) {
+            this.renderDisposalBatchesModalTable(batches);
+            return;
+        }
+        const filtered = batches.filter(b => 
+            (b.batchCode && b.batchCode.toLowerCase().includes(term)) ||
+            (b.productName && b.productName.toLowerCase().includes(term))
+        );
+        this.renderDisposalBatchesModalTable(filtered);
+    },
+
+    toggleAllDisposalModalBatches(checked) {
+        document.querySelectorAll('.modal-disp-item-checkbox:not(:disabled)').forEach(cb => {
+            cb.checked = checked;
+        });
+        this.updateDisposalModalSelectedCount();
+    },
+
+    updateDisposalModalSelectedCount() {
+        const count = document.querySelectorAll('.modal-disp-item-checkbox:checked:not(:disabled)').length;
+        const countEl = document.getElementById('modal-disposal-selected-count');
+        if (countEl) countEl.textContent = count;
+    },
+
+    confirmAddModalDisposalBatches() {
+        const checkboxes = document.querySelectorAll('.modal-disp-item-checkbox:checked:not(:disabled)');
+        if (checkboxes.length === 0) {
+            alert('Vui lòng tích chọn ít nhất 1 lô thuốc cần tiêu hủy!');
+            return;
+        }
+
+        let addedCount = 0;
+        checkboxes.forEach(cb => {
+            try {
+                const b = JSON.parse(cb.getAttribute('data-batch'));
+                if (b) {
+                    this.addDisposalItem(b, false);
+                    addedCount++;
+                }
+            } catch (err) {
+                console.error('Parse batch error', err);
+            }
+        });
+
+        this.renderDisposalItemsTable();
+        this.calcDisposalTotal();
+        this.closeModal('modal-select-disposal-batches');
+        this.showCenterToast(`✅ Đã thêm ${addedCount} lô thuốc vào danh sách hủy!`, 'green', 2200);
+    },
+
+    async loadDisposalSlipsList() {
+        const tbody1 = document.getElementById('disposal-slips-list-tbody');
+        const tbody2 = document.getElementById('report-disposals-body');
+        if (!tbody1 && !tbody2) return;
+
+        try {
+            const res = await this.apiFetch('/api/v1/disposal-slips');
+            if (res.success && res.data) {
+                const isAdmin = this.state.user && this.state.user.position === 'ROLE_ADMIN';
+                const rowsHtml = res.data.length === 0
+                    ? '<tr><td colspan="9" style="text-align: center; color: var(--gray-500); padding: 1.5rem;">Chưa có phiếu hủy hàng nào.</td></tr>'
+                    : res.data.map(d => {
+                        let badge = '<span class="status-badge status-unpaid"><i class="fa-solid fa-clock"></i> Chờ xác nhận</span>';
+                        if (d.status === 'DISPOSED') badge = '<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Đã hủy</span>';
+                        else if (d.status === 'CANCELLED') badge = '<span class="status-badge status-cancelled"><i class="fa-solid fa-ban"></i> Đã từ chối</span>';
+
+                        let itemDesc = '-';
+                        let itemQty = '-';
+                        let itemReason = '-';
+                        let prodLabel = '';
+                        if (d.items && d.items.length > 0) {
+                            if (d.items.length === 1) {
+                                const it = d.items[0];
+                                itemDesc = `<strong>${it.productName}</strong><br><small style="color: var(--gray-600);">Lô: ${it.batchCode || '-'}</small>`;
+                                itemQty = `<span style="font-weight: 700; color: #b45309;">${it.quantity}</span> ${it.unit || ''}`;
+                                itemReason = it.reason || '-';
+                                prodLabel = `${it.productName} (${it.quantity} ${it.unit || ''})`;
+                            } else {
+                                itemDesc = `<strong>${d.items.length} lô thuốc:</strong><div style="font-size: 0.76rem; color: var(--gray-600); margin-top: 2px; line-height: 1.3;">` +
+                                    d.items.slice(0, 3).map(it => `• ${it.productName} (Lô: ${it.batchCode})`).join('<br>') +
+                                    (d.items.length > 3 ? `<br><em>...và ${d.items.length - 3} lô khác</em>` : '') +
+                                    `</div>`;
+                                const totalQty = d.items.reduce((s, it) => s + it.quantity, 0);
+                                itemQty = `<span style="font-weight: 700; color: #b45309;">${totalQty}</span> <small style="color: var(--gray-500);">(Tổng)</small>`;
+                                itemReason = d.items.map(it => it.reason).filter(Boolean).join('; ');
+                                prodLabel = `${d.items.length} lô thuốc (Tổng ${totalQty} sp)`;
+                            }
+                        }
+                        const escapedLabel = prodLabel.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+
+                        let actions = '<span style="color: var(--gray-400); font-size: 0.82rem;">-</span>';
+                        if (isAdmin && d.status === 'PENDING') {
+                            actions = `
+                                <div style="display: flex; gap: 0.35rem; justify-content: center;">
+                                    <button class="btn-success" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; white-space: nowrap;" onclick="app.approveDisposalSlip(${d.disposalSlipId}, '${escapedLabel}')"><i class="fa-solid fa-check"></i> Xác nhận (Duyệt)</button>
+                                    <button class="btn-danger" style="padding: 0.25rem 0.55rem; font-size: 0.78rem; white-space: nowrap;" onclick="app.rejectDisposalSlip(${d.disposalSlipId}, '${escapedLabel}')"><i class="fa-solid fa-xmark"></i> Từ chối</button>
+                                </div>
+                            `;
+                        } else if (d.status === 'DISPOSED') {
+                            actions = '<span style="color: #15803d; font-size: 0.82rem; font-weight: 600;"><i class="fa-solid fa-check"></i> Đã duyệt</span>';
+                        } else if (d.status === 'CANCELLED') {
+                            actions = '<span style="color: #b91c1c; font-size: 0.82rem; font-weight: 600;"><i class="fa-solid fa-ban"></i> Đã từ chối</span>';
+                        }
+
+                        return `
+                            <tr>
+                                <td><strong>#PH${String(d.disposalSlipId).padStart(4, '0')}</strong></td>
+                                <td>${d.warehouseStaffName || '-'}</td>
+                                <td>${d.warehouseName || '-'}</td>
+                                <td>${itemDesc}</td>
+                                <td style="text-align: right;">${itemQty}</td>
+                                <td style="max-width: 200px; white-space: normal; font-size: 0.85rem;">${itemReason}</td>
+                                <td>${this.formatDateTime(d.disposalDate)}</td>
+                                <td style="text-align: center;">${badge}</td>
+                                <td style="text-align: center;">${actions}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                if (tbody1) tbody1.innerHTML = rowsHtml;
+                if (tbody2) tbody2.innerHTML = rowsHtml;
+            }
+        } catch (e) {
+            console.error('Error loading disposal slips:', e);
+            if (tbody1) tbody1.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger);">Lỗi: ' + e.message + '</td></tr>';
+            if (tbody2) tbody2.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger);">Lỗi: ' + e.message + '</td></tr>';
+        }
+    },
+
+    async approveDisposalSlip(id, prodLabel = '') {
+        const detailInfo = prodLabel ? ` [${prodLabel}]` : '';
+        if (!confirm(`Bạn có chắc muốn PHÊ DUYỆT phiếu hủy #${id}${detailInfo}? (Hàng hóa sẽ bị trừ khỏi tồn kho).`)) return;
+        try {
+            const res = await this.apiFetch(`/api/v1/disposal-slips/${id}/confirm`, { method: 'POST' });
+            if (res.success) {
+                this.showCenterToast('✅ Đã phê duyệt phiếu hủy thành công (Đã trừ kho)', 'green', 2500);
+                this.loadDisposalSlipsList();
+                if (document.getElementById('view-reports')?.classList.contains('active')) {
+                    this.loadReportDashboard();
+                }
+            } else {
+                alert('Lỗi phê duyệt phiếu hủy: ' + res.message);
+            }
+        } catch (e) {
+            alert('Lỗi phê duyệt: ' + e.message);
+        }
+    },
+
+    async rejectDisposalSlip(id, prodLabel = '') {
+        const detailInfo = prodLabel ? ` [${prodLabel}]` : '';
+        if (!confirm(`Từ chối phiếu hủy #${id}${detailInfo}?`)) return;
+        try {
+            const res = await this.apiFetch(`/api/v1/disposal-slips/${id}/cancel`, { method: 'POST' });
+            if (res.success) {
+                this.showCenterToast('✅ Đã từ chối phiếu hủy #' + id, 'green', 2000);
+                this.loadDisposalSlipsList();
+                if (document.getElementById('view-reports')?.classList.contains('active')) {
+                    this.loadReportDashboard();
+                }
             } else {
                 alert('Lỗi: ' + res.message);
             }
-        } catch (e) { alert('Lỗi: ' + e.message); }
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+        }
     },
 
     printA4Report() {
+        const now = new Date();
+        const dEl = document.getElementById('a4-sign-date');
+        if (dEl) {
+            dEl.innerHTML = `Hà Nội, Ngày ${String(now.getDate()).padStart(2, '0')} tháng ${String(now.getMonth() + 1).padStart(2, '0')} năm ${now.getFullYear()}<br>Chủ cửa hàng / Giám đốc`;
+        }
         document.body.classList.add('printing-a4');
         window.print();
         setTimeout(() => {
             document.body.classList.remove('printing-a4');
         }, 1000);
     },
-
 
 
     // ================= ADMIN MASTER DATA MANAGEMENT =================
@@ -1671,17 +2512,34 @@ const app = {
                 if (res.success) {
                     container.innerHTML = `
                         <table class="data-table">
-                            <thead><tr><th>ID</th><th>Tên kho</th><th>Địa chỉ</th><th>Trạng thái</th><th>Đổi trạng thái</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tên kho</th>
+                                    <th>Địa chỉ</th>
+                                    <th style="text-align: center;">Trạng thái</th>
+                                    <th style="text-align: center;">Đổi trạng thái</th>
+                                    <th style="text-align: center;">Thao tác</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 ${res.data.map(w => `
                                     <tr>
-                                        <td>${w.warehouseId}</td>
+                                        <td><strong>#${w.warehouseId}</strong></td>
                                         <td><strong>${w.warehouseName}</strong></td>
                                         <td>${w.warehouseAddress}</td>
-                                        <td><span class="status-badge ${w.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}">${w.status}</span></td>
-                                        <td>
-                                            <button class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="app.toggleWarehouseStatus(${w.warehouseId}, '${w.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}')">
-                                                Chuyển sang ${w.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}
+                                        <td style="text-align: center;"><span class="status-badge ${w.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}">${w.status}</span></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn-secondary" style="padding: 0.2rem 0.55rem; font-size: 0.75rem;" onclick="app.toggleWarehouseStatus(${w.warehouseId}, '${w.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}')">
+                                                <i class="fa-solid fa-arrows-rotate"></i> Chuyển sang ${w.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}
+                                            </button>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.25rem;" onclick="app.editWarehouse(${JSON.stringify(w).replace(/"/g, '&quot;')})">
+                                                <i class="fa-solid fa-pen-to-square"></i> Sửa
+                                            </button>
+                                            <button class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="app.deleteWarehouse(${w.warehouseId})">
+                                                <i class="fa-solid fa-trash"></i> Xóa
                                             </button>
                                         </td>
                                     </tr>
@@ -1798,15 +2656,22 @@ const app = {
             this.openModal('modal-new-product');
         } else if (tab === 'warehouses') {
             const name = prompt('Nhập tên kho:');
+            if (name === null) return;
             const addr = prompt('Nhập địa chỉ kho:');
-            if (name && addr) {
+            if (addr === null) return;
+            if (name.trim() && addr.trim()) {
                 this.apiFetch('/api/v1/warehouses', {
                     method: 'POST',
-                    body: JSON.stringify({ warehouseName: name, warehouseAddress: addr, status: 'ACTIVE' })
+                    body: JSON.stringify({ warehouseName: name.trim(), warehouseAddress: addr.trim(), status: 'ACTIVE' })
                 }).then(res => {
-                    if (res.success) this.renderMgmtTable('warehouses');
-                    else alert('Lỗi: ' + res.message);
+                    if (res.success) {
+                        this.showCenterToast('✓ Thêm kho mới thành công!', 'green');
+                        this.renderMgmtTable('warehouses');
+                        this.loadWarehouses();
+                    } else alert('Lỗi: ' + res.message);
                 });
+            } else {
+                alert('Tên kho và địa chỉ không được để trống!');
             }
         } else if (tab === 'suppliers') {
             this.openModal('modal-new-supplier');
@@ -1907,18 +2772,68 @@ const app = {
         if (!confirm(`Chuyển trạng thái kho sang ${targetStatus}? Trigger PostgreSQL sẽ tự động kiểm tra xem kho còn tồn hàng hoặc chứng từ đang chờ xử lý hay không.`)) return;
 
         try {
-            const res = await this.apiFetch('/api/v1/warehouses', {
-                method: 'POST',
-                body: JSON.stringify({ warehouseId: wId, status: targetStatus, warehouseName: '', warehouseAddress: '' })
+            const res = await this.apiFetch(`/api/v1/warehouses/${wId}/toggle-status`, {
+                method: 'PATCH'
             });
 
             if (res.success) {
+                this.showCenterToast(`✓ Đã đổi trạng thái kho sang ${res.data.status}!`, 'green');
                 this.renderMgmtTable('warehouses');
+                this.loadWarehouses();
             } else {
                 alert('Không thể đổi trạng thái kho: ' + res.message);
             }
         } catch (e) {
             alert('Không thể đổi trạng thái kho: ' + e.message);
+        }
+    },
+
+    editWarehouse(w) {
+        const newName = prompt('Nhập tên kho mới:', w.warehouseName);
+        if (newName === null) return;
+        const newAddr = prompt('Nhập địa chỉ kho mới:', w.warehouseAddress);
+        if (newAddr === null) return;
+        if (!newName.trim() || !newAddr.trim()) {
+            alert('Tên kho và địa chỉ không được để trống!');
+            return;
+        }
+
+        this.apiFetch('/api/v1/warehouses', {
+            method: 'POST',
+            body: JSON.stringify({
+                warehouseId: w.warehouseId,
+                warehouseName: newName.trim(),
+                warehouseAddress: newAddr.trim(),
+                status: w.status
+            })
+        }).then(res => {
+            if (res.success) {
+                this.showCenterToast('✓ Cập nhật thông tin kho thành công!', 'green');
+                this.renderMgmtTable('warehouses');
+                this.loadWarehouses();
+            } else {
+                alert('Lỗi cập nhật kho: ' + res.message);
+            }
+        }).catch(e => alert('Lỗi: ' + e.message));
+    },
+
+    async deleteWarehouse(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa kho hàng này? Lưu ý: Không thể xóa kho nếu đã có hóa đơn, phiếu nhập/hủy, nhân viên phụ trách hoặc còn hàng tồn.')) return;
+
+        try {
+            const res = await this.apiFetch(`/api/v1/warehouses/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.success) {
+                this.showCenterToast('✓ Xóa kho hàng thành công!', 'green');
+                this.renderMgmtTable('warehouses');
+                this.loadWarehouses();
+            } else {
+                alert('Không thể xóa kho hàng: ' + res.message);
+            }
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
         }
     },
 

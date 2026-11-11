@@ -5,15 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c5dec690-cc91-4fe2-91e8-33b3135856b2" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules/pharmacy-management.main.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.10/checksums/checksums.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/checksums/checksums.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.10/checksums/md5-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/checksums/md5-checksums.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.10/checksums/sha1-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/checksums/sha1-checksums.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.10/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.10/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/executionHistory/executionHistory.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.10/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/fileHashes/fileHashes.bin" afterDir="false" />
@@ -21,86 +13,70 @@
       <change beforePath="$PROJECT_DIR$/.gradle/8.10/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.10/fileHashes/resourceHashesCache.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/data_source_mapping.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/data_source_mapping.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CHUẨN HÓA BẢNG 3NF.docx" beforeDir="false" afterPath="$PROJECT_DIR$/CHUẨN HÓA BẢNG 3NF.docx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/config/SecurityConfig.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/config/SecurityConfig.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/CategoryController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/CategoryController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/CustomerController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/CustomerController.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Danh sách 12 Controller trong hệ thống.docx" beforeDir="false" afterPath="$PROJECT_DIR$/Danh sách 12 Controller trong hệ thống.docx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/DisposalSlipController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/DisposalSlipController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/EmployeeController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/EmployeeController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ImportSlipController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ImportSlipController.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/InvoiceController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/InvoiceController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/MediCareApiController.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ProductController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ProductController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ReportController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/ReportController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/SupplierController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/SupplierController.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/WarehouseController.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/controller/WarehouseController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/BatchInfoDTO$BatchInfoDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/BatchInfoDTO$BatchInfoDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/BatchInfoDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/BatchInfoDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CustomerDTO$CustomerDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CustomerDTO$CustomerDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CustomerDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CustomerDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/EmployeeDTO$EmployeeDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/EmployeeDTO$EmployeeDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/EmployeeDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/EmployeeDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/ProductDTO$ProductDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/ProductDTO$ProductDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/ProductDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/ProductDTO.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateDisposalSlipRequest$CreateDisposalSlipRequestBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateDisposalSlipRequest$CreateDisposalSlipRequestBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateDisposalSlipRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateDisposalSlipRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateImportSlipRequest$CreateImportSlipRequestBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateImportSlipRequest$CreateImportSlipRequestBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateImportSlipRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/CreateImportSlipRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/InvoiceResponseDTO$InvoiceResponseDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/InvoiceResponseDTO$InvoiceResponseDTOBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/InvoiceResponseDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/InvoiceResponseDTO.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/WarehouseDTO$WarehouseDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/WarehouseDTO$WarehouseDTOBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/WarehouseDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/dto/WarehouseDTO.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/BatchRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/BatchRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/DisposalSlipRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/DisposalSlipRepository.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/EmployeeRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/EmployeeRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/ImportSlipRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/ImportSlipRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/InventoryRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/InventoryRepository.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/InvoiceRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/InvoiceRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/ProductRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/ProductRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/SupplierRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/SupplierRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/AuthService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/AuthService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/BatchService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/BatchService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/CustomerService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/CustomerService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/WarehouseRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/repository/WarehouseRepository.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/DisposalSlipService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/DisposalSlipService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/EmployeeService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/EmployeeService.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/ImportSlipService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/ImportSlipService.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/InvoiceService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/InvoiceService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/ProductService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/ProductService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/PdfExportService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/PdfExportService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/WarehouseService.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/com/pharmacy/service/WarehouseService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/libs/pharmacy-management-1.0.0-plain.jar" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/build/libs/pharmacy-management-1.0.0.jar" beforeDir="false" afterPath="$PROJECT_DIR$/build/libs/pharmacy-management-1.0.0.jar" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/resources/main/schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/build/resources/main/schema.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/resources/main/static/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/build/resources/main/static/css/styles.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/resources/main/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/build/resources/main/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/resources/main/static/index_medicare.html" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/build/resources/main/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/build/resources/main/static/js/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/MediCareApiController.class.uniqueId0" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/DisposalSlipController.class.uniqueId3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/DisposalSlipService.class.uniqueId0" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/ImportSlipController.class.uniqueId6" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/ImportSlipService.class.uniqueId4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/InvoiceController.class.uniqueId5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/InvoiceService.class.uniqueId2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/ReportController.class.uniqueId1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/compileTransaction/stash-dir/ReportService.class.uniqueId7" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/build/tmp/compileJava/previous-compilation-data.bin" beforeDir="false" afterPath="$PROJECT_DIR$/build/tmp/compileJava/previous-compilation-data.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/tmp/jar/MANIFEST.MF" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/pharmacy_pqs.sql" beforeDir="false" afterPath="$PROJECT_DIR$/pharmacy_pqs.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/CategoryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/CategoryController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/CustomerController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/CustomerController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/DisposalSlipController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/DisposalSlipController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/EmployeeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/EmployeeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ImportSlipController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ImportSlipController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/InvoiceController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/InvoiceController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/MediCareApiController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ProductController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ProductController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ReportController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/ReportController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/SupplierController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/SupplierController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/WarehouseController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/controller/WarehouseController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/BatchInfoDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/BatchInfoDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CustomerDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CustomerDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/EmployeeDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/EmployeeDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/ProductDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/ProductDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CreateDisposalSlipRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CreateDisposalSlipRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CreateImportSlipRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/CreateImportSlipRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/InvoiceResponseDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/InvoiceResponseDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/WarehouseDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/dto/WarehouseDTO.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/BatchRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/BatchRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/DisposalSlipRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/DisposalSlipRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/EmployeeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/EmployeeRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/ImportSlipRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/ImportSlipRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/InventoryRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/InventoryRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/InvoiceRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/InvoiceRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/ProductRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/ProductRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/SupplierRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/SupplierRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/AuthService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/BatchService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/BatchService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/CustomerService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/CustomerService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/WarehouseRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/repository/WarehouseRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/DisposalSlipService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/DisposalSlipService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/EmployeeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/EmployeeService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/ImportSlipService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/ImportSlipService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/InvoiceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/InvoiceService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/ProductService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/ProductService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/schema.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/PdfExportService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/PdfExportService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/WarehouseService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/pharmacy/service/WarehouseService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/static/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/css/styles.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/static/index_medicare.html" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/js/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/~$UẨN HÓA BẢNG 3NF.docx" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -139,6 +115,9 @@
   <component name="KubernetesApiProvider">{
   &quot;isMigrated&quot;: true
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: 1
@@ -148,29 +127,31 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Gradle.Build CSDL_BAI_TAP_LON.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
-    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
-    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
-    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;Spring Boot.PharmacyManagementApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.Build CSDL_BAI_TAP_LON.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "Spring Boot.PharmacyManagementApplication.executor": "Run",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/CSDL_BAI_TAP_LON",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;DatabaseDriversLRU&quot;: [
-      &quot;postgresql&quot;
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
     ]
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="PharmacyManagementApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="pharmacy-management.main" />
@@ -199,6 +180,10 @@
       <workItem from="1793698812366" duration="240000" />
       <workItem from="1793711265312" duration="5106000" />
       <workItem from="1793760763773" duration="1881000" />
+      <workItem from="1793772212318" duration="10259000" />
+      <workItem from="1793878791334" duration="735000" />
+      <workItem from="1794149289818" duration="1391000" />
+      <workItem from="1794277748749" duration="9584000" />
     </task>
     <servers />
   </component>

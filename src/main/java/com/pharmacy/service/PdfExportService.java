@@ -7,6 +7,7 @@ import com.pharmacy.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.DecimalFormat;
@@ -21,181 +22,324 @@ public class PdfExportService {
     private final DecimalFormat currencyFormat = new DecimalFormat("#,##0");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
+    private final Color PRIMARY_GREEN = new Color(0, 135, 68);
+    private final Color DARK_GREEN = new Color(0, 100, 50);
+    private final Color LIGHT_GREEN = new Color(236, 247, 238);
+    private final Color BORDER_GREEN = new Color(46, 125, 50);
+    private final Color BORDER_LIGHT = new Color(165, 214, 167);
+    private final Color TEXT_MUTED = new Color(100, 100, 100);
+
     private Font getUnicodeFont(float size, int style) {
+        return getUnicodeFont(size, style, Color.BLACK);
+    }
+
+    private Font getUnicodeFont(float size, int style, Color color) {
         try {
-            String fontPath = "C:/Windows/Fonts/times.ttf";
+            String fontPath = "C:/Windows/Fonts/arial.ttf";
             if (style == Font.BOLD) {
-                String boldPath = "C:/Windows/Fonts/timesbd.ttf";
-                if (new File(boldPath).exists()) {
-                    fontPath = boldPath;
-                }
+                String boldPath = "C:/Windows/Fonts/arialbd.ttf";
+                if (new File(boldPath).exists()) fontPath = boldPath;
             } else if (style == Font.ITALIC) {
-                String italicPath = "C:/Windows/Fonts/timesi.ttf";
-                if (new File(italicPath).exists()) {
-                    fontPath = italicPath;
-                }
+                String italicPath = "C:/Windows/Fonts/ariali.ttf";
+                if (new File(italicPath).exists()) fontPath = italicPath;
+            } else if (style == (Font.BOLD | Font.ITALIC)) {
+                String biPath = "C:/Windows/Fonts/arialbi.ttf";
+                if (new File(biPath).exists()) fontPath = biPath;
             }
 
             if (new File(fontPath).exists()) {
                 BaseFont baseFont = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                return new Font(baseFont, size, style);
+                return new Font(baseFont, size, style, color);
             }
         } catch (Exception ignored) {
         }
-        return FontFactory.getFont(FontFactory.HELVETICA, size, style);
+        return FontFactory.getFont(FontFactory.HELVETICA, size, style, color);
     }
 
     public byte[] exportInvoiceK80(InvoiceResponseDTO invoice) {
-        // K80 standard width = 80mm ≈ 226.77 points
-        float width = 226.77f;
-        // Auto height estimation based on items count
-        int itemCount = invoice.getItems() != null ? invoice.getItems().size() : 0;
-        float height = Math.max(380f, 280f + itemCount * 30f);
-
-        Rectangle pageSize = new Rectangle(width, height);
-        Document document = new Document(pageSize, 8, 8, 10, 10);
+        // Form hóa đơn bán lẻ theo chuẩn 1 tờ A4 Portrait (210 x 297 mm)
+        Document document = new Document(PageSize.A4, 28, 28, 24, 24);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
-            PdfWriter.getInstance(document, out);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+
+            // Viền bo trang và dải chân trang
+            writer.setPageEvent(new PdfPageEventHelper() {
+                @Override
+                public void onEndPage(PdfWriter writer, Document document) {
+                    PdfContentByte cb = writer.getDirectContent();
+                    cb.saveState();
+
+                    float width = document.getPageSize().getWidth();
+                    float height = document.getPageSize().getHeight();
+
+                    // Khung viền xanh bo góc toàn trang A4 (giống mẫu ảnh)
+                    cb.setColorStroke(PRIMARY_GREEN);
+                    cb.setLineWidth(1.5f);
+                    cb.roundRectangle(20, 20, width - 40, height - 40, 10);
+                    cb.stroke();
+
+                    // Dải banner xanh đáy trang A4
+                    cb.setColorFill(PRIMARY_GREEN);
+                    cb.roundRectangle(22, 22, width - 44, 24, 6);
+                    cb.fill();
+
+                    try {
+                        Font bannerFont = getUnicodeFont(9.5f, Font.BOLD, Color.WHITE);
+                        ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
+                                new Phrase("Quý khách được đổi trả trong vòng 5 - 7 ngày, xin cảm ơn Quý khách!", bannerFont),
+                                width / 2, 29, 0);
+
+                        // Dòng chữ dọc mép phải giấy như mẫu ảnh
+                        Font sideFont = getUnicodeFont(7.5f, Font.NORMAL, new Color(130, 130, 130));
+                        ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
+                                new Phrase("Hệ thống Nhà thuốc PHARMACY - Hotline: 0962416952", sideFont),
+                                width - 10, height / 2, 90);
+                    } catch (Exception ignored) {}
+
+                    cb.restoreState();
+                }
+            });
+
             document.open();
 
-            Font titleFont = getUnicodeFont(13, Font.BOLD);
-            Font subTitleFont = getUnicodeFont(9, Font.NORMAL);
-            Font boldFont = getUnicodeFont(8.5f, Font.BOLD);
-            Font regularFont = getUnicodeFont(8, Font.NORMAL);
-            Font italicFont = getUnicodeFont(7.5f, Font.ITALIC);
+            Font brandTitleFont = getUnicodeFont(19f, Font.BOLD, PRIMARY_GREEN);
+            Font infoFont = getUnicodeFont(10.5f, Font.NORMAL, Color.BLACK);
+            Font phoneFont = getUnicodeFont(11f, Font.BOLD, PRIMARY_GREEN);
+            Font sloganFont = getUnicodeFont(11f, Font.ITALIC, PRIMARY_GREEN);
+            Font docTitleFont = getUnicodeFont(18f, Font.BOLD, PRIMARY_GREEN);
+            Font boldFont = getUnicodeFont(10.5f, Font.BOLD, Color.BLACK);
+            Font regularFont = getUnicodeFont(10.5f, Font.NORMAL, Color.BLACK);
+            Font italicFont = getUnicodeFont(10f, Font.ITALIC, Color.BLACK);
 
-            // Header Line 1: PHARMACY
-            Paragraph pHeader = new Paragraph("PHARMACY", titleFont);
-            pHeader.setAlignment(Element.ALIGN_CENTER);
-            pHeader.setSpacingAfter(1);
-            document.add(pHeader);
+            // ================= 1. HEADER (LOGO + THÔNG TIN NHÀ THUỐC) =================
+            PdfPTable headerTable = new PdfPTable(new float[]{1.3f, 4.7f});
+            headerTable.setWidthPercentage(100);
+            headerTable.setSpacingAfter(8);
 
-            // Header Line 2: ĐT: 02773766999
-            Paragraph pPhone = new Paragraph("ĐT: 02773766999", subTitleFont);
-            pPhone.setAlignment(Element.ALIGN_CENTER);
-            pPhone.setSpacingAfter(2);
-            document.add(pPhone);
+            // Cột 1: Logo
+            PdfPCell logoCell = new PdfPCell();
+            logoCell.setBorder(Rectangle.NO_BORDER);
+            logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
 
-            // Header Line 3: HÓA ĐƠN BÁN LẺ
-            Paragraph pTitle = new Paragraph("HÓA ĐƠN BÁN LẺ", titleFont);
-            pTitle.setAlignment(Element.ALIGN_CENTER);
-            pTitle.setSpacingAfter(4);
-            document.add(pTitle);
+            Paragraph logoP = new Paragraph();
+            logoP.setAlignment(Element.ALIGN_CENTER);
+            logoP.add(new Chunk("+ ✛ +\n", getUnicodeFont(20f, Font.BOLD, PRIMARY_GREEN)));
+            logoP.add(new Chunk("PHARMACY", getUnicodeFont(10.5f, Font.BOLD, PRIMARY_GREEN)));
+            logoCell.addElement(logoP);
+            headerTable.addCell(logoCell);
 
-            // Divider 1
-            LineSeparator separator = new LineSeparator(0.8f, 100, null, Element.ALIGN_CENTER, -2);
-            document.add(separator);
+            // Cột 2: Thông tin hiệu thuốc
+            PdfPCell brandCell = new PdfPCell();
+            brandCell.setBorder(Rectangle.NO_BORDER);
+            brandCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
 
-            // Metadata
-            Paragraph pMeta = new Paragraph();
-            pMeta.setSpacingBefore(4);
-            pMeta.setSpacingAfter(4);
-            pMeta.setFont(regularFont);
-            pMeta.add(new Chunk("Ngày mua: ", boldFont));
-            pMeta.add(new Chunk(invoice.getCreatedAt() != null ? invoice.getCreatedAt().format(dateTimeFormatter) : "" + "\n", regularFont));
-            pMeta.add(new Chunk("NV bán hàng: ", boldFont));
-            pMeta.add(new Chunk(invoice.getSalesStaffName() + "\n", regularFont));
-            pMeta.add(new Chunk("Người mua: ", boldFont));
-            pMeta.add(new Chunk((invoice.getCustomerName() != null ? invoice.getCustomerName() : "KHVL") + "\n", regularFont));
-            pMeta.add(new Chunk("Số HĐ: ", boldFont));
-            pMeta.add(new Chunk(invoice.getInvoiceCode() + "\n", regularFont));
-            document.add(pMeta);
+            Paragraph pBrand = new Paragraph("NHÀ THUỐC PHARMACY", brandTitleFont);
+            pBrand.setSpacingAfter(3);
+            brandCell.addElement(pBrand);
 
-            // Divider 2
-            document.add(separator);
+            String whAddr = (invoice.getWarehouseAddress() != null && !invoice.getWarehouseAddress().isBlank())
+                    ? invoice.getWarehouseAddress()
+                    : (invoice.getWarehouseName() != null ? invoice.getWarehouseName() : "Kho Tổng - Số 123 Đường Giải Phóng, Hà Nội");
 
-            // Product Items Table (6 cols: TT | Tên hàng | ĐVT | SL | ĐG | Thành tiền)
-            PdfPTable table = new PdfPTable(new float[]{1.2f, 4.5f, 1.8f, 1.5f, 2.8f, 3.2f});
-            table.setWidthPercentage(100);
-            table.setSpacingBefore(4);
-            table.setSpacingAfter(4);
+            Paragraph pAddr = new Paragraph();
+            pAddr.add(new Chunk("Địa chỉ: ", boldFont));
+            pAddr.add(new Chunk(whAddr + "\n", infoFont));
+            pAddr.add(new Chunk("Điện thoại: ", boldFont));
+            pAddr.add(new Chunk("0962416952\n", phoneFont));
+            pAddr.setSpacingAfter(3);
+            brandCell.addElement(pAddr);
 
-            String[] headers = {"TT", "Tên hàng", "ĐVT", "SL", "ĐG", "Thành tiền"};
+            Paragraph pSlogan = new Paragraph("Chăm Sóc Sức Khỏe – Chia Sẻ Niềm Vui", sloganFont);
+            pSlogan.setAlignment(Element.ALIGN_LEFT);
+            brandCell.addElement(pSlogan);
+
+            headerTable.addCell(brandCell);
+            document.add(headerTable);
+
+            // ================= 2. TIÊU ĐỀ HÓA ĐƠN & SỐ =================
+            Paragraph pDocTitle = new Paragraph("HÓA ĐƠN BÁN HÀNG", docTitleFont);
+            pDocTitle.setAlignment(Element.ALIGN_CENTER);
+            pDocTitle.setSpacingAfter(2);
+            document.add(pDocTitle);
+
+            Paragraph pDocCode = new Paragraph("Số: " + (invoice.getInvoiceCode() != null ? invoice.getInvoiceCode() : "........"), regularFont);
+            pDocCode.setAlignment(Element.ALIGN_CENTER);
+            pDocCode.setSpacingAfter(8);
+            document.add(pDocCode);
+
+            // ================= 3. THÔNG TIN KHÁCH HÀNG =================
+            PdfPTable custTable = new PdfPTable(new float[]{3.6f, 2.4f});
+            custTable.setWidthPercentage(100);
+            custTable.setSpacingAfter(8);
+
+            String custName = invoice.getCustomerName() != null ? invoice.getCustomerName() : "Khách lẻ";
+            String custPhone = (invoice.getCustomerPhone() != null && !invoice.getCustomerPhone().isBlank()) ? invoice.getCustomerPhone() : "....................";
+            String custAddr = (invoice.getCustomerAddress() != null && !invoice.getCustomerAddress().isBlank()) ? invoice.getCustomerAddress() : "........................................................";
+
+            PdfPCell cName = new PdfPCell(new Phrase("Tên khách hàng: " + custName, regularFont));
+            cName.setBorder(Rectangle.NO_BORDER);
+            cName.setPadding(2);
+            custTable.addCell(cName);
+
+            PdfPCell cPhone = new PdfPCell(new Phrase("Điện thoại: " + custPhone, regularFont));
+            cPhone.setBorder(Rectangle.NO_BORDER);
+            cPhone.setPadding(2);
+            custTable.addCell(cPhone);
+
+            PdfPCell cAddr = new PdfPCell(new Phrase("Địa chỉ: " + custAddr, regularFont));
+            cAddr.setColspan(2);
+            cAddr.setBorder(Rectangle.NO_BORDER);
+            cAddr.setPadding(2);
+            custTable.addCell(cAddr);
+
+            document.add(custTable);
+
+            // ================= 4. BẢNG HÀNG HÓA =================
+            PdfPTable itemsTable = new PdfPTable(new float[]{0.8f, 5.0f, 1.4f, 2.0f, 2.2f});
+            itemsTable.setWidthPercentage(100);
+            itemsTable.setSpacingBefore(4);
+            itemsTable.setSpacingAfter(6);
+
+            // Header bảng
+            String[] headers = {"TT", "Hàng hóa", "Số lượng", "Đơn giá", "Thành tiền"};
             for (String h : headers) {
-                PdfPCell cell = new PdfPCell(new Phrase(h, boldFont));
+                PdfPCell cell = new PdfPCell(new Phrase(h, getUnicodeFont(10.5f, Font.BOLD, Color.WHITE)));
+                cell.setBackgroundColor(PRIMARY_GREEN);
+                cell.setBorderColor(PRIMARY_GREEN);
                 cell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                cell.setBorder(Rectangle.BOTTOM);
-                cell.setPadding(2);
-                table.addCell(cell);
+                cell.setPadding(6f);
+                itemsTable.addCell(cell);
             }
 
             int seq = 1;
-            int totalQty = 0;
+            int totalRows = 0;
             if (invoice.getItems() != null) {
                 for (InvoiceItemResponseDTO item : invoice.getItems()) {
-                    totalQty += item.getQuantity();
+                    totalRows++;
 
                     // TT
                     PdfPCell c1 = new PdfPCell(new Phrase(String.valueOf(seq++), regularFont));
                     c1.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    c1.setBorder(Rectangle.NO_BORDER);
-                    c1.setPadding(2);
-                    table.addCell(c1);
+                    c1.setBorderColor(BORDER_LIGHT);
+                    c1.setPadding(5.5f);
+                    itemsTable.addCell(c1);
 
-                    // Tên hàng (IN HOA)
-                    PdfPCell c2 = new PdfPCell(new Phrase(item.getProductName().toUpperCase(), regularFont));
+                    // Hàng hóa (Tên thuốc + ĐVT)
+                    String prodLabel = item.getProductName() + (item.getUnit() != null ? " (" + item.getUnit() + ")" : "");
+                    PdfPCell c2 = new PdfPCell(new Phrase(prodLabel, regularFont));
                     c2.setHorizontalAlignment(Element.ALIGN_LEFT);
-                    c2.setBorder(Rectangle.NO_BORDER);
-                    c2.setPadding(2);
-                    table.addCell(c2);
+                    c2.setBorderColor(BORDER_LIGHT);
+                    c2.setPadding(5.5f);
+                    itemsTable.addCell(c2);
 
-                    // ĐVT
-                    PdfPCell c3 = new PdfPCell(new Phrase(item.getUnit(), regularFont));
+                    // Số lượng
+                    PdfPCell c3 = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), regularFont));
                     c3.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    c3.setBorder(Rectangle.NO_BORDER);
-                    c3.setPadding(2);
-                    table.addCell(c3);
+                    c3.setBorderColor(BORDER_LIGHT);
+                    c3.setPadding(5.5f);
+                    itemsTable.addCell(c3);
 
-                    // SL
-                    PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), regularFont));
+                    // Đơn giá
+                    PdfPCell c4 = new PdfPCell(new Phrase(currencyFormat.format(item.getUnitPrice()), regularFont));
                     c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    c4.setBorder(Rectangle.NO_BORDER);
-                    c4.setPadding(2);
-                    table.addCell(c4);
-
-                    // ĐG
-                    PdfPCell c5 = new PdfPCell(new Phrase(currencyFormat.format(item.getUnitPrice()), regularFont));
-                    c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    c5.setBorder(Rectangle.NO_BORDER);
-                    c5.setPadding(2);
-                    table.addCell(c5);
+                    c4.setBorderColor(BORDER_LIGHT);
+                    c4.setPadding(5.5f);
+                    itemsTable.addCell(c4);
 
                     // Thành tiền
-                    PdfPCell c6 = new PdfPCell(new Phrase(currencyFormat.format(item.getSubTotal()), regularFont));
-                    c6.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    c6.setBorder(Rectangle.NO_BORDER);
-                    c6.setPadding(2);
-                    table.addCell(c6);
+                    PdfPCell c5 = new PdfPCell(new Phrase(currencyFormat.format(item.getSubTotal()), regularFont));
+                    c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    c5.setBorderColor(BORDER_LIGHT);
+                    c5.setPadding(5.5f);
+                    itemsTable.addCell(c5);
                 }
             }
-            document.add(table);
 
-            // Divider 3
-            document.add(separator);
+            // Tạo các dòng trống để bảng có đủ 12 dòng đúng chuẩn mẫu phôi hóa đơn bán lẻ A4
+            int minRows = 12;
+            for (int r = totalRows + 1; r <= minRows; r++) {
+                PdfPCell c1 = new PdfPCell(new Phrase(String.valueOf(r), getUnicodeFont(9.5f, Font.NORMAL, new Color(180, 180, 180))));
+                c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+                c1.setBorderColor(BORDER_LIGHT);
+                c1.setPadding(5.5f);
+                itemsTable.addCell(c1);
 
-            // Summary
-            Paragraph pSum = new Paragraph();
-            pSum.setSpacingBefore(4);
-            pSum.add(new Chunk("Tổng SL: " + totalQty + "          ", boldFont));
-            pSum.add(new Chunk("Tổng TT: " + currencyFormat.format(invoice.getTotalAmount()) + " đ\n", boldFont));
-            pSum.add(new Chunk("Viết bằng chữ: ", italicFont));
-            pSum.add(new Chunk(invoice.getTotalAmountInWords() + "\n", getUnicodeFont(7.5f, Font.BOLD | Font.ITALIC)));
-            document.add(pSum);
+                for (int c = 2; c <= 5; c++) {
+                    PdfPCell emptyC = new PdfPCell(new Phrase(" ", regularFont));
+                    emptyC.setBorderColor(BORDER_LIGHT);
+                    emptyC.setPadding(5.5f);
+                    itemsTable.addCell(emptyC);
+                }
+            }
 
-            // Footer
-            Paragraph pFoot = new Paragraph();
-            pFoot.setAlignment(Element.ALIGN_CENTER);
-            pFoot.setSpacingBefore(8);
-            pFoot.add(new Chunk("Cảm ơn quý khách hàng đã mua hàng\n", italicFont));
-            pFoot.add(new Chunk("Rất mong nhận được sự góp ý về phương thức phục vụ, giá cả, chất lượng của chúng tôi", italicFont));
-            document.add(pFoot);
+            // Dòng Cộng (Tổng tiền)
+            PdfPCell totalLabelCell = new PdfPCell(new Phrase("Cộng", boldFont));
+            totalLabelCell.setColspan(4);
+            totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            totalLabelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            totalLabelCell.setBorderColor(BORDER_LIGHT);
+            totalLabelCell.setPadding(6f);
+            itemsTable.addCell(totalLabelCell);
+
+            PdfPCell totalValCell = new PdfPCell(new Phrase(currencyFormat.format(invoice.getTotalAmount()) + " đ", getUnicodeFont(11.5f, Font.BOLD, PRIMARY_GREEN)));
+            totalValCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            totalValCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            totalValCell.setBorderColor(BORDER_LIGHT);
+            totalValCell.setPadding(6f);
+            itemsTable.addCell(totalValCell);
+
+            document.add(itemsTable);
+
+            // ================= 5. TỔNG TIỀN BẰNG CHỮ =================
+            Paragraph pWords = new Paragraph();
+            pWords.add(new Chunk("Thành tiền bằng chữ: ", italicFont));
+            pWords.add(new Chunk(invoice.getTotalAmountInWords() != null ? invoice.getTotalAmountInWords() : "", getUnicodeFont(10.5f, Font.BOLD | Font.ITALIC, Color.BLACK)));
+            pWords.setSpacingAfter(10);
+            document.add(pWords);
+
+            // ================= 6. GHI CHÚ & CHỮ KÝ DƯỢC SỸ =================
+            PdfPTable footerTable = new PdfPTable(new float[]{3.2f, 2.8f});
+            footerTable.setWidthPercentage(100);
+            footerTable.setSpacingAfter(10);
+
+            // Cột trái: Ô ghi chú bo góc nhẹ nền xanh nhạt
+            PdfPCell noteCell = new PdfPCell();
+            noteCell.setBackgroundColor(LIGHT_GREEN);
+            noteCell.setBorderColor(BORDER_LIGHT);
+            noteCell.setPadding(8);
+
+            Paragraph pNote = new Paragraph();
+            pNote.add(new Chunk("Ghi chú:\n", boldFont));
+            pNote.add(new Chunk(invoice.getNote() != null && !invoice.getNote().isBlank() ? invoice.getNote() : "Hàng mua theo đơn, bảo quản nơi khô ráo thoáng mát.", regularFont));
+            noteCell.addElement(pNote);
+            footerTable.addCell(noteCell);
+
+            // Cột phải: Ngày tháng năm và Dược sỹ (Tên người bán)
+            LocalDate d = invoice.getCreatedAt() != null ? invoice.getCreatedAt().toLocalDate() : LocalDate.now();
+            String dateStr = String.format("Ngày %02d tháng %02d năm 20%02d", d.getDayOfMonth(), d.getMonthValue(), d.getYear() % 100);
+
+            PdfPCell signCell = new PdfPCell();
+            signCell.setBorder(Rectangle.NO_BORDER);
+            signCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+
+            Paragraph pSign = new Paragraph();
+            pSign.setAlignment(Element.ALIGN_CENTER);
+            pSign.add(new Chunk(dateStr + "\n", italicFont));
+            pSign.add(new Chunk("DƯỢC SỸ\n", getUnicodeFont(11f, Font.BOLD, PRIMARY_GREEN)));
+            pSign.add(new Chunk("(Ký, ghi rõ họ tên)\n\n\n\n", italicFont));
+            pSign.add(new Chunk(invoice.getSalesStaffName() != null ? invoice.getSalesStaffName() : "Dược sỹ bán hàng", boldFont));
+            signCell.addElement(pSign);
+            footerTable.addCell(signCell);
+
+            document.add(footerTable);
 
             document.close();
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi tạo hóa đơn PDF K80: " + e.getMessage(), e);
+            throw new RuntimeException("Lỗi tạo hóa đơn bán lẻ PDF: " + e.getMessage(), e);
         }
 
         return out.toByteArray();

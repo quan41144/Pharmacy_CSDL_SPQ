@@ -1,6 +1,7 @@
 package com.pharmacy.service;
 
 import com.pharmacy.dto.CreateImportSlipRequest;
+import com.pharmacy.dto.ImportSlipItemRequest;
 import com.pharmacy.dto.ImportSlipItemResponseDTO;
 import com.pharmacy.dto.ImportSlipResponseDTO;
 import com.pharmacy.entity.*;
@@ -14,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -61,26 +64,46 @@ public class ImportSlipService {
             throw new RuntimeException("Kho đã ngừng hoạt động, không được nhập hàng.");
         }
 
-        Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy thuốc cần nhập"));
-
-        if (request.getExpDate().isBefore(request.getMfgDate()) || request.getExpDate().isEqual(request.getMfgDate())) {
-            throw new RuntimeException("Hạn sử dụng phải lớn hơn ngày sản xuất");
+        List<ImportSlipItemRequest> itemsReq = request.getItems();
+        if (itemsReq == null || itemsReq.isEmpty()) {
+            if (request.getProductId() != null) {
+                itemsReq = List.of(ImportSlipItemRequest.builder()
+                        .productId(request.getProductId())
+                        .batchCode(request.getBatchCode())
+                        .mfgDate(request.getMfgDate())
+                        .expDate(request.getExpDate())
+                        .quantity(request.getQuantity())
+                        .unitPrice(request.getUnitPrice() != null ? request.getUnitPrice() : BigDecimal.valueOf(10000.00))
+                        .build());
+            } else {
+                throw new RuntimeException("Phiếu nhập phải có ít nhất một lô thuốc");
+            }
         }
 
-        BigDecimal unitPrice = request.getUnitPrice() != null ? request.getUnitPrice() : BigDecimal.valueOf(10000.00);
-        BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(request.getQuantity()));
-
-        // Tạo hoặc lấy lô thuốc
-        Batch batch = batchRepository.findByBatchCode(request.getBatchCode()).orElse(null);
-        if (batch == null) {
-            batch = Batch.builder()
-                    .product(product)
-                    .batchCode(request.getBatchCode())
-                    .mfgDate(request.getMfgDate())
-                    .expDate(request.getExpDate())
-                    .build();
-            batch = batchRepository.save(batch);
+        // Validate items and calculate total amount
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (ImportSlipItemRequest it : itemsReq) {
+            if (it.getProductId() == null) {
+                throw new RuntimeException("Mã thuốc không được để trống");
+            }
+            if (it.getBatchCode() == null || it.getBatchCode().trim().isEmpty()) {
+                throw new RuntimeException("Số lô sản xuất không được để trống");
+            }
+            if (it.getMfgDate() == null || it.getExpDate() == null) {
+                throw new RuntimeException("Ngày sản xuất và hạn sử dụng không được để trống");
+            }
+            if (it.getExpDate().isBefore(it.getMfgDate()) || it.getExpDate().isEqual(it.getMfgDate())) {
+                throw new RuntimeException("Hạn sử dụng của lô " + it.getBatchCode() + " phải lớn hơn ngày sản xuất");
+            }
+            if (it.getQuantity() == null || it.getQuantity() <= 0) {
+                throw new RuntimeException("Số lượng nhập của lô " + it.getBatchCode() + " phải lớn hơn 0");
+            }
+            BigDecimal price = it.getUnitPrice() != null ? it.getUnitPrice() : BigDecimal.ZERO;
+            if (price.compareTo(BigDecimal.ZERO) < 0) {
+                throw new RuntimeException("Đơn giá nhập của lô " + it.getBatchCode() + " không được âm");
+            }
+            BigDecimal subTotal = price.multiply(BigDecimal.valueOf(it.getQuantity()));
+            totalAmount = totalAmount.add(subTotal);
         }
 
         ImportSlip slip = ImportSlip.builder()
@@ -94,21 +117,57 @@ public class ImportSlipService {
 
         ImportSlip savedSlip = importSlipRepository.saveAndFlush(slip);
 
-        ImportSlipItemId itemId = ImportSlipItemId.builder()
-                .importSlipId(savedSlip.getImportSlipId())
-                .batchId(batch.getBatchId())
-                .build();
+        Map<Long, ImportSlipItem> itemMap = new LinkedHashMap<>();
+        for (ImportSlipItemRequest it : itemsReq) {
+            Product product = productRepository.findById(it.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thuốc có mã: " + it.getProductId()));
 
-        ImportSlipItem item = ImportSlipItem.builder()
-                .id(itemId)
-                .importSlip(savedSlip)
-                .batch(batch)
-                .quantity(request.getQuantity())
-                .unitPrice(unitPrice)
-                .subTotal(totalAmount)
-                .build();
+            Batch batch = batchRepository.findByProductProductIdAndBatchCode(product.getProductId(), it.getBatchCode().trim()).orElse(null);
+            if (batch == null) {
+                batch = Batch.builder()
+                        .product(product)
+                        .batchCode(it.getBatchCode().trim())
+                        .mfgDate(it.getMfgDate())
+                        .expDate(it.getExpDate())
+                        .build();
+                batch = batchRepository.save(batch);
+            }
 
-        importSlipItemRepository.saveAndFlush(item);
+            BigDecimal price = it.getUnitPrice() != null ? it.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal subTotal = price.multiply(BigDecimal.valueOf(it.getQuantity()));
+
+            Long batchId = batch.getBatchId();
+            if (itemMap.containsKey(batchId)) {
+                ImportSlipItem existing = itemMap.get(batchId);
+                existing.setQuantity(existing.getQuantity() + it.getQuantity());
+                existing.setSubTotal(existing.getUnitPrice().multiply(BigDecimal.valueOf(existing.getQuantity())));
+            } else {
+                ImportSlipItemId itemId = ImportSlipItemId.builder()
+                        .importSlipId(savedSlip.getImportSlipId())
+                        .batchId(batchId)
+                        .build();
+
+                ImportSlipItem item = ImportSlipItem.builder()
+                        .id(itemId)
+                        .importSlip(savedSlip)
+                        .batch(batch)
+                        .quantity(it.getQuantity())
+                        .unitPrice(price)
+                        .subTotal(subTotal)
+                        .build();
+
+                itemMap.put(batchId, item);
+            }
+        }
+
+        importSlipItemRepository.saveAll(itemMap.values());
+        importSlipItemRepository.flush();
+
+        BigDecimal finalTotal = itemMap.values().stream()
+                .map(ImportSlipItem::getSubTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        savedSlip.setTotalAmount(finalTotal);
+        savedSlip = importSlipRepository.saveAndFlush(savedSlip);
 
         return toDTO(savedSlip);
     }

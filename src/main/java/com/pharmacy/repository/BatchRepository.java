@@ -16,6 +16,8 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
 
     Optional<Batch> findByBatchCode(String batchCode);
 
+    Optional<Batch> findByProductProductIdAndBatchCode(Long productId, String batchCode);
+
     @Query("SELECT b FROM Batch b JOIN Inventory i ON i.batch.batchId = b.batchId " +
            "WHERE i.warehouse.warehouseId = :warehouseId " +
            "AND b.product.productId = :productId " +

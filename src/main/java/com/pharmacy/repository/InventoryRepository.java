@@ -3,6 +3,7 @@ package com.pharmacy.repository;
 import com.pharmacy.entity.Inventory;
 import com.pharmacy.entity.InventoryId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -36,4 +37,11 @@ public interface InventoryRepository extends JpaRepository<Inventory, InventoryI
            "AND (:keyword IS NULL OR :keyword = '' OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(b.batchCode) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "ORDER BY p.productName ASC, b.expDate ASC")
     List<Inventory> findAllInventoryDetails(@Param("warehouseId") Long warehouseId, @Param("keyword") String keyword);
+
+    @Query("SELECT COUNT(i) > 0 FROM Inventory i WHERE i.warehouse.warehouseId = :warehouseId AND i.quantity > 0")
+    boolean existsStockInWarehouse(@Param("warehouseId") Long warehouseId);
+
+    @Modifying
+    @Query("DELETE FROM Inventory i WHERE i.warehouse.warehouseId = :warehouseId")
+    void deleteByWarehouseId(@Param("warehouseId") Long warehouseId);
 }

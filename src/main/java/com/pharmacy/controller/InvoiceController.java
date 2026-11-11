@@ -74,8 +74,11 @@ public class InvoiceController {
     }
 
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<byte[]> getInvoicePdf(@PathVariable Long id) {
+    public ResponseEntity<?> getInvoicePdf(@PathVariable Long id) {
         InvoiceResponseDTO invoice = invoiceService.getInvoiceById(id);
+        if ("CANCELLED".equalsIgnoreCase(invoice.getStatus())) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Hóa đơn đã hủy không được phép in hoặc xuất PDF."));
+        }
         byte[] pdfBytes = pdfExportService.exportInvoiceK80(invoice);
 
         return ResponseEntity.ok()

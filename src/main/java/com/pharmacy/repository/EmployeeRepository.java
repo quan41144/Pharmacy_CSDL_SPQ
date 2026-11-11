@@ -2,6 +2,8 @@ package com.pharmacy.repository;
 
 import com.pharmacy.entity.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,4 +20,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     List<Employee> findByPositionAndWorkStatus(String position, String workStatus);
 
     List<Employee> findAllByOrderByEmployeeIdAsc();
+
+    @Query("SELECT COUNT(e) > 0 FROM Employee e WHERE e.warehouse.warehouseId = :warehouseId")
+    boolean existsByWarehouseId(@Param("warehouseId") Long warehouseId);
 }
